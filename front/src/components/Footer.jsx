@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   FaInstagram, 
   FaFacebookF, 
@@ -68,7 +69,7 @@ function Footer() {
                 HELP
               </h3>
               <ul className="space-y-2.5">
-                <li><a href="#contact" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Contact Us</a></li>
+                <li><Link to="/contact" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Contact Us</Link></li>
                 <li><a href="#shipping" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Shipping</a></li>
                 <li><a href="#returns" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Returns</a></li>
                 <li><a href="#size-guide" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Size Guide</a></li>
@@ -83,7 +84,7 @@ function Footer() {
                 ABOUT
               </h3>
               <ul className="space-y-2.5">
-                <li><a href="#story" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Our Story</a></li>
+                <li><Link to="/about" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Our Story</Link></li>
                 <li><a href="#careers" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Careers</a></li>
                 <li><a href="#sustainability" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Sustainability</a></li>
                 <li><a href="#press" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Press</a></li>

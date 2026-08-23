@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   FiSearch, 
   FiHeart, 
@@ -66,13 +67,13 @@ function Header() {
   }, [isMobileMenuOpen]);
 
   const navLinks = [
-    { name: 'New In', href: '#new-in', isSale: false },
-    { name: 'Clothing', href: '#clothing', isSale: false },
-    { name: 'Dresses', href: '#dresses', isSale: false },
-    { name: 'Tops', href: '#tops', isSale: false },
-    { name: 'Bottoms', href: '#bottoms', isSale: false },
-    { name: 'Co-Ords', href: '#co-ords', isSale: false },
-    { name: 'Sale', href: '#sale', isSale: true },
+    { name: 'New In', href: '/shop', isSale: false },
+    { name: 'Clothing', href: '/shop', isSale: false },
+    { name: 'Dresses', href: '/category/dresses', isSale: false },
+    { name: 'Tops', href: '/category/tops', isSale: false },
+    { name: 'Bottoms', href: '/category/bottoms', isSale: false },
+    { name: 'Co-Ords', href: '/category/co-ords', isSale: false },
+    { name: 'Sale', href: '/shop', isSale: true },
   ];
 
   return (
@@ -132,20 +133,20 @@ function Header() {
 
           {/* Logo */}
           <div className="flex-1 md:flex-initial text-center md:text-left">
-            <a 
-              href="/" 
+            <Link 
+              to="/" 
               className="font-serif text-2xl sm:text-3xl font-semibold tracking-[0.2em] text-gray-950 hover:text-rose-600 transition-colors duration-300 inline-block uppercase"
             >
               Lavéra
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex flex-1 justify-center items-center space-x-8">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.name}
-                href={link.href}
+                to={link.href}
                 className={`text-xs font-semibold tracking-[0.2em] uppercase transition-colors duration-300 relative py-2 group ${
                   link.isSale 
                     ? 'text-rose-600 hover:text-rose-700' 
@@ -157,7 +158,7 @@ function Header() {
                 <span className={`absolute bottom-0 left-0 w-full h-[1.5px] transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left ${
                   link.isSale ? 'bg-rose-600' : 'bg-black'
                 }`} />
-              </a>
+              </Link>
             ))}
           </div>
 
@@ -173,35 +174,35 @@ function Header() {
             </button>
 
             {/* Wishlist */}
-            <a
-              href="#wishlist"
+            <Link
+              to="/wishlist"
               className="hidden sm:inline-block text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105"
               aria-label="Wishlist"
             >
               <FiHeart className="w-5 h-5 sm:w-6 sm:h-6" />
-            </a>
+            </Link>
 
             {/* Account */}
-            <a
-              href="#account"
+            <Link
+              to="/account"
               className="hidden sm:inline-block text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105"
               aria-label="Account"
             >
               <FiUser className="w-5 h-5 sm:w-6 sm:h-6" />
-            </a>
+            </Link>
 
             {/* Cart / Shopping Bag */}
-            <a
-              href="#cart"
+            <Link
+              to="/cart"
               className="text-gray-900 hover:text-rose-600 transition-all duration-300 relative hover:scale-105 inline-block"
               aria-label="Shopping Cart"
             >
               <FiShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
               {/* Badge representing items count (matches image design) */}
               <span className="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-white">
-                2
+                3
               </span>
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -261,9 +262,9 @@ function Header() {
             {/* Menu Items */}
             <div className="flex flex-col space-y-4">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.name}
-                  href={link.href}
+                  to={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`text-sm font-medium tracking-[0.18em] uppercase transition-colors duration-200 py-1.5 block ${
                     link.isSale 
@@ -272,7 +273,7 @@ function Header() {
                   }`}
                 >
                   {link.name}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -280,23 +281,23 @@ function Header() {
           {/* Footer in Drawer (Mobile Account/Settings links) */}
           <div className="border-t border-gray-100 pt-6">
             <div className="flex items-center justify-around text-gray-800">
-              <a 
-                href="#account" 
+              <Link 
+                to="/account" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
               >
                 <FiUser className="w-5 h-5" />
                 <span className="text-[10px] tracking-widest font-semibold uppercase">Account</span>
-              </a>
+              </Link>
               <div className="h-6 w-[1px] bg-gray-200" />
-              <a 
-                href="#wishlist" 
+              <Link 
+                to="/wishlist" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
               >
                 <FiHeart className="w-5 h-5" />
                 <span className="text-[10px] tracking-widest font-semibold uppercase">Wishlist</span>
-              </a>
+              </Link>
             </div>
             <div className="mt-6 text-center">
               <p className="text-[9px] text-gray-400 tracking-widest uppercase">
