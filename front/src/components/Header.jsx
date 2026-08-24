@@ -121,7 +121,7 @@ function Header() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           
           {/* Mobile: Hamburger Button */}
-          <div className="flex md:hidden">
+          <div className="flex lg:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="text-gray-900 hover:text-rose-600 transition-colors duration-200 focus:outline-none"
@@ -132,7 +132,7 @@ function Header() {
           </div>
 
           {/* Logo */}
-          <div className="flex-1 md:flex-initial text-center md:text-left">
+          <div className="flex-1 lg:flex-initial text-center lg:text-left">
             <Link 
               to="/" 
               className="font-serif text-2xl sm:text-3xl font-semibold tracking-[0.2em] text-gray-950 hover:text-rose-600 transition-colors duration-300 inline-block uppercase"
@@ -142,7 +142,7 @@ function Header() {
           </div>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden md:flex flex-1 justify-center items-center space-x-8">
+          <div className="hidden lg:flex flex-1 justify-center items-center space-x-8">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -184,7 +184,7 @@ function Header() {
 
             {/* Account */}
             <Link
-              to="/account"
+              to="/login"
               className="hidden sm:inline-block text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105"
               aria-label="Account"
             >
@@ -233,13 +233,13 @@ function Header() {
 
       {/* Mobile Drawer (Menu Overlay & Menu Container) */}
       <div 
-        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
+        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
           isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setIsMobileMenuOpen(false)}
       >
         <div 
-          className={`fixed inset-y-0 left-0 w-[80%] max-w-sm bg-white shadow-2xl flex flex-col justify-between p-6 transition-transform duration-300 ease-out md:hidden ${
+          className={`fixed inset-y-0 left-0 w-[80%] max-w-sm bg-white shadow-2xl flex flex-col justify-between p-6 transition-transform duration-300 ease-out lg:hidden ${
             isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onClick={(e) => e.stopPropagation()} // Prevent closing drawer when clicking inside
@@ -282,7 +282,7 @@ function Header() {
           <div className="border-t border-gray-100 pt-6">
             <div className="flex items-center justify-around text-gray-800">
               <Link 
-                to="/account" 
+                to="/login" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
               >

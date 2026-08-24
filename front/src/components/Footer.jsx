@@ -70,10 +70,10 @@ function Footer() {
               </h3>
               <ul className="space-y-2.5">
                 <li><Link to="/contact" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Contact Us</Link></li>
-                <li><a href="#shipping" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Shipping</a></li>
-                <li><a href="#returns" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Returns</a></li>
+                <li><Link to="/shipping-policy" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Shipping</Link></li>
+                <li><Link to="/return-policy" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Returns</Link></li>
                 <li><a href="#size-guide" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Size Guide</a></li>
-                <li><a href="#faqs" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">FAQs</a></li>
+                <li><Link to="/faqs" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">FAQs</Link></li>
                 <li><a href="#track-order" className="text-xs font-light text-gray-500 hover:text-black transition-colors duration-200">Track Order</a></li>
               </ul>
             </div>
@@ -121,11 +121,11 @@ function Footer() {
                 LEGAL
               </h3>
               <div className="flex flex-wrap gap-x-3 gap-y-1">
-                <a href="#privacy" className="text-[11px] font-light text-gray-500 hover:text-black transition-colors">Privacy Policy</a>
+                <Link to="/privacy" className="text-[11px] font-light text-gray-500 hover:text-black transition-colors">Privacy Policy</Link>
                 <span className="text-gray-300 text-[11px] font-light">|</span>
-                <a href="#terms" className="text-[11px] font-light text-gray-500 hover:text-black transition-colors">Terms</a>
+                <Link to="/terms" className="text-[11px] font-light text-gray-500 hover:text-black transition-colors">Terms</Link>
                 <span className="text-gray-300 text-[11px] font-light">|</span>
-                <a href="#refund" className="text-[11px] font-light text-gray-500 hover:text-black transition-colors">Refund Policy</a>
+                <Link to="/return-policy" className="text-[11px] font-light text-gray-500 hover:text-black transition-colors">Refund Policy</Link>
               </div>
             </div>
           </div>

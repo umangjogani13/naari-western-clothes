@@ -241,9 +241,11 @@ function Cart() {
 
               {/* Action Buttons */}
               <div className="space-y-3">
-                <button className="w-full bg-black hover:bg-rose-600 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm shadow-md transition-all active:scale-[0.98] duration-300">
-                  Proceed To Checkout
-                </button>
+                <Link to="/checkout" className="block w-full">
+                  <button className="w-full bg-black hover:bg-rose-600 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm shadow-md transition-all active:scale-[0.98] duration-300">
+                    Proceed To Checkout
+                  </button>
+                </Link>
                 
                 <button className="w-full bg-white border border-gray-200 hover:border-black text-gray-800 text-[10px] font-bold tracking-[0.18em] uppercase py-3.5 rounded-sm flex items-center justify-center gap-2 transition-all duration-300">
                   <FiLock className="w-3.5 h-3.5 text-gray-500" />
