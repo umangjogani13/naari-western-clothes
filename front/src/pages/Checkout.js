@@ -77,8 +77,7 @@ function Checkout() {
 
   const handleCheckoutSubmit = (e) => {
     e.preventDefault();
-    alert("Checkout completed successfully! Thank you for shopping with Lavéra.");
-    navigate('/account');
+    navigate('/order-confirmed');
   };
 
   return (
