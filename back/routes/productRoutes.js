@@ -1,31 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const productController = require('../controllers/productController');
 
-// Mock products endpoint returning an empty array for now
-router.get('/', (req, res) => {
-  res.json([
-    {
-      id: 1,
-      name: "Oversized Cotton Shirt",
-      price: 1499,
-      image: "/images/prod_shirt.jpg",
-      category: "Shirts"
-    },
-    {
-      id: 2,
-      name: "Satin Midi Dress",
-      price: 2299,
-      image: "/images/prod_dress.jpg",
-      category: "Dresses"
-    },
-    {
-      id: 4,
-      name: "Wide Leg Jeans",
-      price: 1999,
-      image: "/images/prod_jeans.jpg",
-      category: "Jeans"
-    }
-  ]);
-});
+// Public catalog routes
+router.get('/', productController.getProducts);
+router.get('/admin', productController.getAllProductsAdmin);
+router.get('/:id', productController.getProductById);
+
+// Admin management routes
+router.post('/', productController.createProduct);
+router.put('/:id', productController.updateProduct);
+router.delete('/:id', productController.deleteProduct);
+router.patch('/:id/stock', productController.updateStock);
+router.patch('/:id/status', productController.toggleStatus);
 
 module.exports = router;

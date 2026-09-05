@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import axiosClient from '../api/axiosClient';
 import { 
   FiHeart, 
   FiChevronLeft, 
@@ -298,15 +299,48 @@ function CategoryPage() {
   const { category } = useParams();
   const catKey = (category || 'dresses').toLowerCase();
 
-  // Load banner info or fallback to dresses banner
-  const banner = useMemo(() => {
-    return CATEGORY_BANNERS[catKey] || CATEGORY_BANNERS["dresses"];
+  // Dynamic Category Metadata state
+  const [categoryData, setCategoryData] = useState(null);
+
+  // Fetch category metadata dynamically from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCategoryInfo = async () => {
+      try {
+        const res = await axiosClient.get(`/categories/${catKey}`);
+        if (res && res.success && res.category && isMounted) {
+          setCategoryData(res.category);
+        }
+      } catch (err) {
+        console.warn(`Using default category config for "${catKey}":`, err.message);
+      }
+    };
+    if (catKey) {
+      fetchCategoryInfo();
+    }
+    return () => { isMounted = false; };
   }, [catKey]);
+
+  // Load banner info from backend or fallback to config
+  const banner = useMemo(() => {
+    if (categoryData) {
+      return {
+        title: categoryData.name,
+        subtitle: categoryData.subtitle || categoryData.description || 'Discover our curated collection for every mood.',
+        image: categoryData.bannerImage || categoryData.image || '/images/cat_dresses.jpg',
+        categoryFilter: categoryData.name
+      };
+    }
+    return CATEGORY_BANNERS[catKey] || CATEGORY_BANNERS["dresses"];
+  }, [categoryData, catKey]);
 
   // Sidebar Subcategory Menu items
   const menuItems = useMemo(() => {
+    if (categoryData && Array.isArray(categoryData.subcategories) && categoryData.subcategories.length > 0) {
+      return categoryData.subcategories;
+    }
     return SUBCATEGORIES[catKey] || SUBCATEGORIES["dresses"];
-  }, [catKey]);
+  }, [categoryData, catKey]);
 
   // Active subcategory selection state
   const [activeSubcategory, setActiveSubcategory] = useState(menuItems[0]);
@@ -315,6 +349,30 @@ function CategoryPage() {
   useEffect(() => {
     setActiveSubcategory(menuItems[0]);
   }, [menuItems]);
+
+  // Dynamic Products State
+  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [, setLoading] = useState(true);
+
+  // Fetch products from backend API
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await axiosClient.get('/products');
+        if (res && res.success && Array.isArray(res.products) && res.products.length > 0 && isMounted) {
+          setProducts(res.products);
+        }
+      } catch (err) {
+        console.warn('Backend API products fetch note: using local mock data', err.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchProducts();
+    return () => { isMounted = false; };
+  }, []);
 
   // Filter Drawer States (Filters sidebar inside popup)
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -362,7 +420,11 @@ function CategoryPage() {
   // Filter & Sort Logic
   const filteredProducts = useMemo(() => {
     // 1. Initial category filter (e.g. Dresses vs Tops)
-    let result = MOCK_PRODUCTS.filter(p => p.category.toLowerCase() === banner.categoryFilter.toLowerCase());
+    const target = (banner.categoryFilter || catKey).toLowerCase();
+    let result = products.filter(p => {
+      const pCat = (p.category || '').toLowerCase();
+      return pCat === target || pCat.includes(target) || target.includes(pCat);
+    });
 
     // 2. Subcategory dynamic filtering based on name matching
     if (activeSubcategory && !activeSubcategory.startsWith("All")) {
@@ -372,36 +434,41 @@ function CategoryPage() {
 
     // 3. Side Drawer Filters
     if (selectedSizes.length > 0) {
-      result = result.filter(p => p.sizes.some(sz => selectedSizes.includes(sz)));
+      result = result.filter(p => Array.isArray(p.sizes) && p.sizes.some(sz => selectedSizes.includes(sz)));
     }
 
     if (selectedColors.length > 0) {
-      result = result.filter(p => p.colors.some(c => selectedColors.includes(c.name)));
+      result = result.filter(p => Array.isArray(p.colors) && p.colors.some(c => {
+        const cName = typeof c === 'string' ? c : c?.name;
+        return selectedColors.includes(cName);
+      }));
     }
 
-    result = result.filter(p => p.price <= priceRange);
+    result = result.filter(p => Number(p.price) <= priceRange);
 
     if (selectedDiscounts.length > 0) {
-      result = result.filter(p => selectedDiscounts.some(d => p.discount >= d));
+      result = result.filter(p => selectedDiscounts.some(d => (p.discount || 0) >= d));
     }
 
     if (selectedFabrics.length > 0) {
-      result = result.filter(p => selectedFabrics.includes(p.fabric));
+      result = result.filter(p => p.fabric && selectedFabrics.includes(p.fabric));
     }
 
     // 4. Sorting Logic
     if (sortBy === 'Best Selling') {
-      result.sort((a, b) => b.reviewsCount - a.reviewsCount);
+      result.sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0));
     } else if (sortBy === 'Price: Low to High') {
       result.sort((a, b) => a.price - b.price);
     } else if (sortBy === 'Price: High to Low') {
       result.sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'Customer Rating') {
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     } else if (sortBy === 'New In') {
-      result.sort((a, b) => b.id - a.id); // higher IDs are newer items
+      result.sort((a, b) => (b.isNewArrival ? 1 : 0) - (a.isNewArrival ? 1 : 0));
     }
 
     return result;
-  }, [banner, activeSubcategory, selectedSizes, selectedColors, priceRange, selectedDiscounts, selectedFabrics, sortBy]);
+  }, [products, banner, catKey, activeSubcategory, selectedSizes, selectedColors, priceRange, selectedDiscounts, selectedFabrics, sortBy]);
 
   // Pagination matching
   const itemsPerPage = 8;
@@ -740,17 +807,36 @@ function CategoryPage() {
       {/* Category Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10 mb-16">
         {paginatedProducts.map(product => {
-          const isFav = !!favorites[product.id];
-          const activeColorName = productSelectedColor[product.id] || product.colors[0]?.name;
+          const productId = product._id || product.id;
+          const isFav = !!favorites[productId];
+          const isOutOfStock = product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0);
+
+          // Normalize colors
+          const colorsList = Array.isArray(product.colors) ? product.colors.map(col => {
+            if (typeof col === 'string') {
+              const lower = col.toLowerCase();
+              let hex = "#C6A482";
+              if (lower.includes('black')) hex = "#000000";
+              else if (lower.includes('white') || lower.includes('cream')) hex = "#F5ECE1";
+              else if (lower.includes('blue')) hex = "#8FB8DE";
+              else if (lower.includes('pink') || lower.includes('wine')) hex = "#9A1F40";
+              else if (lower.includes('green')) hex = "#1E3F20";
+              return { name: col, value: hex };
+            }
+            return col;
+          }) : [];
+
+          const activeColorName = productSelectedColor[productId] || colorsList[0]?.name;
+          const displayImage = product.image || (product.images && product.images[0]) || '/images/prod_dress.jpg';
           
           return (
-            <div key={product.id} className="group flex flex-col animate-fade-in">
+            <div key={productId} className="group flex flex-col animate-fade-in">
               
               {/* Product Card Image container */}
               <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-50 mb-4 rounded-sm border border-gray-100/50">
-                <Link to={`/product/${product.id}`} className="block w-full h-full">
+                <Link to={`/product/${productId}`} className="block w-full h-full">
                   <img 
-                    src={product.image} 
+                    src={displayImage} 
                     alt={product.name} 
                     className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-500 ease-out" 
                   />
@@ -763,9 +849,16 @@ function CategoryPage() {
                   </span>
                 )}
 
+                {/* Out of Stock Overlay Badge */}
+                {isOutOfStock && (
+                  <span className="absolute bottom-3 left-3 bg-gray-900/90 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm backdrop-blur-sm">
+                    Out of Stock
+                  </span>
+                )}
+
                 {/* Overlaid Wishlist button */}
                 <button 
-                  onClick={() => toggleFavorite(product.id)}
+                  onClick={() => toggleFavorite(productId)}
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-600 shadow-sm border border-gray-100 hover:text-rose-600 hover:scale-110 transition-all duration-300"
                   aria-label={isFav ? "Remove from wishlist" : "Add to wishlist"}
                 >
@@ -774,57 +867,62 @@ function CategoryPage() {
 
                 {/* Overlaid quick add button */}
                 <div className="absolute inset-x-3 bottom-3 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                  <button className="w-full bg-white hover:bg-black hover:text-white text-black text-[10px] font-bold tracking-[0.2em] uppercase py-3 border border-gray-100/50 shadow-md text-center transition-all duration-300">
-                    Quick Add
-                  </button>
+                  <Link 
+                    to={`/product/${productId}`} 
+                    className="block w-full bg-white hover:bg-black hover:text-white text-black text-[10px] font-bold tracking-[0.2em] uppercase py-3 border border-gray-100/50 shadow-md text-center transition-all duration-300"
+                  >
+                    {isOutOfStock ? 'View Details' : 'Quick View'}
+                  </Link>
                 </div>
               </div>
 
               {/* Title & metadata */}
               <div className="text-left flex-1 flex flex-col items-start">
-                <h3 className="text-xs sm:text-sm font-medium tracking-wide text-gray-900 hover:text-rose-600 transition-colors duration-200 mb-1.5">
-                  <Link to={`/product/${product.id}`}>{product.name}</Link>
+                <h3 className="text-xs sm:text-sm font-medium tracking-wide text-gray-900 hover:text-rose-600 transition-colors duration-200 mb-1.5 line-clamp-1">
+                  <Link to={`/product/${productId}`}>{product.name}</Link>
                 </h3>
 
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-xs sm:text-sm font-semibold text-gray-950">₹{product.price.toLocaleString()}</span>
-                  {product.discount > 0 && (
+                  <span className="text-xs sm:text-sm font-semibold text-gray-950">₹{Number(product.price).toLocaleString()}</span>
+                  {(product.oldPrice || product.discount > 0) && (
                     <span className="text-[10px] sm:text-xs text-gray-400 font-light line-through">
-                      ₹{Math.round(product.price / (1 - product.discount / 100)).toLocaleString()}
+                      ₹{(product.oldPrice || Math.round(product.price / (1 - (product.discount || 10) / 100))).toLocaleString()}
                     </span>
                   )}
                 </div>
 
-                {/* Star rating (Satin Midi Dress layout reviews match) */}
-                {product.id === 2 && (
+                {/* Star rating */}
+                {(product.reviewsCount || product.rating) && (
                   <div className="flex items-center gap-1.5 mb-3.5 text-xs text-gray-500">
                     <div className="flex text-amber-400">
                       <FaStar className="w-3.5 h-3.5" />
                     </div>
                     <span className="font-light">
-                      4.8 <span className="mx-1">·</span> ({product.reviewsCount})
+                      {product.rating || '4.8'} <span className="mx-1">·</span> ({product.reviewsCount || 24})
                     </span>
                   </div>
                 )}
 
                 {/* Color swatches */}
-                <div className="flex items-center gap-1.5 mt-auto pt-1">
-                  {product.colors.map(color => {
-                    const isActive = activeColorName === color.name;
-                    return (
-                      <button
-                        key={color.name}
-                        onClick={() => handleProductColorSelect(product.id, color.name)}
-                        className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 relative ${
-                          isActive ? 'ring-1 ring-black ring-offset-1 scale-105 border-transparent' : 'border-gray-200'
-                        }`}
-                        style={{ backgroundColor: color.value }}
-                        title={color.name}
-                        aria-label={`Select ${color.name} color`}
-                      />
-                    );
-                  })}
-                </div>
+                {colorsList.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-auto pt-1">
+                    {colorsList.map(color => {
+                      const isActive = activeColorName === color.name;
+                      return (
+                        <button
+                          key={color.name}
+                          onClick={() => handleProductColorSelect(productId, color.name)}
+                          className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 relative ${
+                            isActive ? 'ring-1 ring-black ring-offset-1 scale-105 border-transparent' : 'border-gray-200'
+                          }`}
+                          style={{ backgroundColor: color.value || '#C6A482' }}
+                          title={color.name}
+                          aria-label={`Select ${color.name} color`}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
             </div>

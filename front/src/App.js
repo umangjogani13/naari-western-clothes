@@ -30,6 +30,9 @@ import AdminCoupons from './admin/Coupons';
 import AdminReviews from './admin/Reviews';
 import AdminInventory from './admin/Inventory';
 import AdminBlog from './admin/Blog';
+import AdminHeroSlider from './admin/HeroSliderAdmin';
+import AdminValueProps from './admin/ValuePropsAdmin';
+import AdminWhyShop from './admin/WhyShopAdmin';
 import AdminBanners from './admin/Banners';
 import AdminReports from './admin/Reports';
 import AdminAnalytics from './admin/Analytics';
@@ -73,6 +76,9 @@ function App() {
         <Route path="/admin/reviews" element={<AdminReviews />} />
         <Route path="/admin/inventory" element={<AdminInventory />} />
         <Route path="/admin/blog" element={<AdminBlog />} />
+        <Route path="/admin/hero-slider" element={<AdminHeroSlider />} />
+        <Route path="/admin/value-props" element={<AdminValueProps />} />
+        <Route path="/admin/why-shop" element={<AdminWhyShop />} />
         <Route path="/admin/banners" element={<AdminBanners />} />
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/analytics" element={<AdminAnalytics />} />

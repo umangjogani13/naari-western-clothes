@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import axiosClient from '../api/axiosClient';
 import { 
   FiHeart, 
   FiX, 
@@ -230,6 +231,39 @@ const COLOR_OPTIONS = [
 function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // Dynamic Products & Categories State
+  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [, setLoading] = useState(true);
+
+  // Fetch products & categories from backend API
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCatalogData = async () => {
+      try {
+        setLoading(true);
+        const [prodRes, catRes] = await Promise.allSettled([
+          axiosClient.get('/products'),
+          axiosClient.get('/categories')
+        ]);
+
+        if (prodRes.status === 'fulfilled' && prodRes.value?.success && Array.isArray(prodRes.value.products) && isMounted) {
+          setProducts(prodRes.value.products);
+        }
+
+        if (catRes.status === 'fulfilled' && catRes.value?.success && Array.isArray(catRes.value.categories) && isMounted) {
+          setCategoriesList(catRes.value.categories);
+        }
+      } catch (err) {
+        console.warn('Backend API catalog fetch note: using local fallback', err.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchCatalogData();
+    return () => { isMounted = false; };
+  }, []);
+
   // Filter States
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedSizes, setSelectedSizes] = useState([]);
@@ -340,36 +374,39 @@ function Shop() {
 
   // Memoized Filtered & Sorted Products
   const processedProducts = useMemo(() => {
-    let result = [...MOCK_PRODUCTS];
+    let result = [...products];
 
     // Category Filter
     if (selectedCategories.length > 0) {
-      result = result.filter(p => selectedCategories.includes(p.category));
+      result = result.filter(p => selectedCategories.some(cat => cat.toLowerCase() === (p.category || '').toLowerCase()));
     }
 
     // Size Filter
     if (selectedSizes.length > 0) {
-      result = result.filter(p => p.sizes.some(size => selectedSizes.includes(size)));
+      result = result.filter(p => Array.isArray(p.sizes) && p.sizes.some(size => selectedSizes.includes(size)));
     }
 
     // Color Filter
     if (selectedColors.length > 0) {
-      result = result.filter(p => p.colors.some(color => selectedColors.includes(color.name)));
+      result = result.filter(p => Array.isArray(p.colors) && p.colors.some(color => {
+        const cName = typeof color === 'string' ? color : color?.name;
+        return selectedColors.includes(cName);
+      }));
     }
 
     // Price Filter (Range up to chosen value)
-    result = result.filter(p => p.price <= priceRange);
+    result = result.filter(p => Number(p.price) <= priceRange);
 
     // Discount Filter
     if (selectedDiscounts.length > 0) {
       result = result.filter(p => {
-        return selectedDiscounts.some(d => p.discount >= d);
+        return selectedDiscounts.some(d => (p.discount || 0) >= d);
       });
     }
 
     // Fabric Filter
     if (selectedFabrics.length > 0) {
-      result = result.filter(p => selectedFabrics.includes(p.fabric));
+      result = result.filter(p => p.fabric && selectedFabrics.includes(p.fabric));
     }
 
     // Sorting Logic
@@ -378,13 +415,13 @@ function Shop() {
     } else if (sortBy === 'Price: High to Low') {
       result.sort((a, b) => b.price - a.price);
     } else if (sortBy === 'Popularity') {
-      result.sort((a, b) => b.reviewsCount - a.reviewsCount);
+      result.sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0));
     } else if (sortBy === 'Discount') {
-      result.sort((a, b) => b.discount - a.discount);
+      result.sort((a, b) => (b.discount || 0) - (a.discount || 0));
     }
 
     return result;
-  }, [selectedCategories, selectedSizes, selectedColors, priceRange, selectedDiscounts, selectedFabrics, sortBy]);
+  }, [products, selectedCategories, selectedSizes, selectedColors, priceRange, selectedDiscounts, selectedFabrics, sortBy]);
 
   // Pagination Logic
   const itemsPerPage = 12;
@@ -395,14 +432,24 @@ function Shop() {
 
   const totalPages = Math.max(1, Math.ceil(processedProducts.length / itemsPerPage));
 
-  // Category counts matching design (Dresses: 130, Tops: 86, Bottoms: 72, Co-ords: 58, Jackets: 34)
-  const categoryMockCounts = {
-    "Dresses": 130,
-    "Tops": 86,
-    "Bottoms": 72,
-    "Co-ords": 58,
-    "Jackets": 34
-  };
+  // Dynamic Category counts matching products catalog
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    const defaultCats = categoriesList.length > 0 
+      ? categoriesList.map(c => c.name) 
+      : ["Dresses", "Tops", "Bottoms", "Co-Ords", "Jeans", "Skirts"];
+
+    defaultCats.forEach(c => { counts[c] = 0; });
+
+    products.forEach(p => {
+      if (p.category) {
+        const matchingKey = defaultCats.find(c => c.toLowerCase() === p.category.toLowerCase()) || p.category;
+        counts[matchingKey] = (counts[matchingKey] || 0) + 1;
+      }
+    });
+
+    return counts;
+  }, [categoriesList, products]);
 
   const filterContent = (
     <div className="space-y-6">
@@ -417,7 +464,7 @@ function Shop() {
         </button>
         {collapseState.category && (
           <div className="space-y-2 mt-1 animate-fade-in">
-            {Object.keys(categoryMockCounts).map(cat => (
+            {Object.keys(categoryCounts).map(cat => (
               <label key={cat} className="flex items-center justify-between text-xs text-gray-600 hover:text-black cursor-pointer group">
                 <div className="flex items-center gap-2.5">
                   <input 
@@ -428,7 +475,7 @@ function Shop() {
                   />
                   <span className="font-light tracking-wide">{cat}</span>
                 </div>
-                <span className="text-[10px] font-light text-gray-400 group-hover:text-gray-600">({categoryMockCounts[cat]})</span>
+                <span className="text-[10px] font-light text-gray-400 group-hover:text-gray-600">({categoryCounts[cat]})</span>
               </label>
             ))}
           </div>
@@ -674,17 +721,35 @@ function Shop() {
           {/* Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
             {paginatedProducts.map(product => {
-              const isFav = !!favorites[product.id];
-              // Colors configuration
-              const activeColorName = productSelectedColor[product.id] || product.colors[0]?.name;
+              const productId = product._id || product.id;
+              const isFav = !!favorites[productId];
+              const isOutOfStock = product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0);
+
+              // Normalize colors
+              const colorsList = Array.isArray(product.colors) ? product.colors.map(col => {
+                if (typeof col === 'string') {
+                  const lower = col.toLowerCase();
+                  let hex = "#C6A482";
+                  if (lower.includes('black')) hex = "#000000";
+                  else if (lower.includes('white') || lower.includes('cream')) hex = "#F5ECE1";
+                  else if (lower.includes('blue')) hex = "#8FB8DE";
+                  else if (lower.includes('pink') || lower.includes('wine')) hex = "#9A1F40";
+                  else if (lower.includes('green')) hex = "#1E3F20";
+                  return { name: col, value: hex };
+                }
+                return col;
+              }) : [];
+
+              const activeColorName = productSelectedColor[productId] || colorsList[0]?.name;
+              const displayImage = product.image || (product.images && product.images[0]) || '/images/prod_shirt.jpg';
               
               return (
-                <div key={product.id} className="group flex flex-col animate-fade-in">
+                <div key={productId} className="group flex flex-col animate-fade-in">
                   {/* Image Container with overlays */}
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-50 mb-4 rounded-sm">
-                    <Link to={`/product/${product.id}`} className="block w-full h-full">
+                    <Link to={`/product/${productId}`} className="block w-full h-full">
                       <img 
-                        src={product.image} 
+                        src={displayImage} 
                         alt={product.name} 
                         className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-500 ease-out"
                       />
@@ -697,9 +762,16 @@ function Shop() {
                       </span>
                     )}
 
+                    {/* Out of Stock Overlay Badge */}
+                    {isOutOfStock && (
+                      <span className="absolute bottom-3 left-3 bg-gray-900/90 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm backdrop-blur-sm">
+                        Out of Stock
+                      </span>
+                    )}
+
                     {/* Wishlist Button */}
                     <button 
-                      onClick={() => toggleFavorite(product.id)}
+                      onClick={() => toggleFavorite(productId)}
                       className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-600 shadow-sm border border-gray-100 hover:text-rose-600 hover:scale-110 transition-all duration-300"
                       aria-label={isFav ? "Remove from wishlist" : "Add to wishlist"}
                     >
@@ -708,57 +780,62 @@ function Shop() {
 
                     {/* Add to Bag hover button */}
                     <div className="absolute inset-x-3 bottom-3 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                      <button className="w-full bg-white hover:bg-black hover:text-white text-black text-[10px] font-bold tracking-[0.2em] uppercase py-3 border border-gray-100/50 shadow-md text-center transition-all duration-300">
-                        Quick Add
-                      </button>
+                      <Link 
+                        to={`/product/${productId}`} 
+                        className="block w-full bg-white hover:bg-black hover:text-white text-black text-[10px] font-bold tracking-[0.2em] uppercase py-3 border border-gray-100/50 shadow-md text-center transition-all duration-300"
+                      >
+                        {isOutOfStock ? 'View Details' : 'Quick View'}
+                      </Link>
                     </div>
                   </div>
 
                   {/* Product Metadata */}
                   <div className="flex-1 flex flex-col items-start text-left">
-                    <h3 className="text-xs sm:text-sm font-medium tracking-wide text-gray-900 hover:text-rose-600 transition-colors duration-200 cursor-pointer mb-1.5">
-                      <Link to={`/product/${product.id}`}>{product.name}</Link>
+                    <h3 className="text-xs sm:text-sm font-medium tracking-wide text-gray-900 hover:text-rose-600 transition-colors duration-200 cursor-pointer mb-1.5 line-clamp-1">
+                      <Link to={`/product/${productId}`}>{product.name}</Link>
                     </h3>
                     
                     <div className="flex items-baseline gap-2 mb-2">
-                      <span className="text-xs sm:text-sm font-semibold text-gray-950">₹{product.price.toLocaleString()}</span>
-                      {product.discount > 0 && (
+                      <span className="text-xs sm:text-sm font-semibold text-gray-950">₹{Number(product.price).toLocaleString()}</span>
+                      {(product.oldPrice || product.discount > 0) && (
                         <span className="text-[10px] sm:text-xs text-gray-400 font-light line-through">
-                          ₹{Math.round(product.price / (1 - product.discount / 100)).toLocaleString()}
+                          ₹{(product.oldPrice || Math.round(product.price / (1 - (product.discount || 10) / 100))).toLocaleString()}
                         </span>
                       )}
                     </div>
 
                     {/* Rating stars */}
-                    {product.id === 1 && (
+                    {(product.reviewsCount || product.rating) && (
                       <div className="flex items-center gap-1.5 mb-3.5 text-xs">
                         <div className="flex text-amber-400">
                           <FaStar className="w-3.5 h-3.5" />
                         </div>
                         <span className="text-gray-400 font-light">
-                          5.0 <span className="mx-1">·</span> ({product.reviewsCount})
+                          {product.rating || '5.0'} <span className="mx-1">·</span> ({product.reviewsCount || 20})
                         </span>
                       </div>
                     )}
 
                     {/* Product Swatches */}
-                    <div className="flex items-center gap-1.5 mt-auto pt-1">
-                      {product.colors.map(color => {
-                        const isActive = activeColorName === color.name;
-                        return (
-                          <button
-                            key={color.name}
-                            onClick={() => handleProductColorSelect(product.id, color.name)}
-                            className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 relative ${
-                              isActive ? 'ring-1 ring-black ring-offset-1 scale-105 border-transparent' : 'border-gray-200'
-                            }`}
-                            style={{ backgroundColor: color.value }}
-                            title={color.name}
-                            aria-label={`Select ${color.name} color`}
-                          />
-                        );
-                      })}
-                    </div>
+                    {colorsList.length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-auto pt-1">
+                        {colorsList.map(color => {
+                          const isActive = activeColorName === color.name;
+                          return (
+                            <button
+                              key={color.name}
+                              onClick={() => handleProductColorSelect(productId, color.name)}
+                              className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 relative ${
+                                isActive ? 'ring-1 ring-black ring-offset-1 scale-105 border-transparent' : 'border-gray-200'
+                              }`}
+                              style={{ backgroundColor: color.value || '#C6A482' }}
+                              title={color.name}
+                              aria-label={`Select ${color.name} color`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

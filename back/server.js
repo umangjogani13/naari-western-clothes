@@ -6,6 +6,10 @@ const mongoose = require('mongoose');
 
 const productRoutes = require('./routes/productRoutes');
 const authRoutes = require('./routes/authRoutes');
+const heroSliderRoutes = require('./routes/heroSliderRoutes');
+const valuePropRoutes = require('./routes/valuePropRoutes');
+const whyShopRoutes = require('./routes/whyShopRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +27,10 @@ app.use(express.json());
 // Routes
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/hero-slider', heroSliderRoutes);
+app.use('/api/value-props', valuePropRoutes);
+app.use('/api/why-shop', whyShopRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

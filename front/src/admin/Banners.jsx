@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   FiSearch, 
   FiPlus, 
   FiEdit, 
   FiTrash2, 
   FiX, 
-  FiUpload 
+  FiUpload,
+  FiSliders
 } from 'react-icons/fi';
 
 const initialBanners = [
@@ -84,12 +86,34 @@ const Banners = () => {
           <h1 className="text-xl text-gray-905 font-bold tracking-tight font-sans">Banners & Promotions</h1>
           <p className="text-xs text-gray-400 mt-1 font-medium">Dashboard &gt; Banners</p>
         </div>
-        <button 
-          onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#B07E5D] text-white rounded-lg text-xs font-semibold hover:bg-[#976849] transition-colors"
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/admin/hero-slider"
+            className="flex items-center gap-1.5 px-3.5 py-2 border border-[#EAE3DC] bg-white text-[#8C6239] rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors shadow-xs"
+          >
+            <FiSliders size={13} /> Hero Slider
+          </Link>
+          <button 
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#B07E5D] text-white rounded-lg text-xs font-semibold hover:bg-[#976849] transition-colors"
+          >
+            <FiPlus size={14} /> Add Banner
+          </button>
+        </div>
+      </div>
+
+      {/* Hero Slider Callout */}
+      <div className="p-3.5 bg-[#FAF4EE] border border-[#EAE3DC] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5 text-[#8C6239]">
+          <FiSliders size={16} className="shrink-0" />
+          <span>Manage dynamic slides, headlines, images, and CTA buttons for the <strong>Home Page Hero Slider</strong>.</span>
+        </div>
+        <Link 
+          to="/admin/hero-slider"
+          className="px-3 py-1.5 bg-[#B07E5D] text-white rounded-lg font-semibold hover:bg-[#976849] transition-colors whitespace-nowrap text-[11px] self-start sm:self-auto"
         >
-          <FiPlus size={14} /> Add Banner
-        </button>
+          Open Hero Slider Manager →
+        </Link>
       </div>
 
       {/* Filter */}

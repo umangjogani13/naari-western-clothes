@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import axiosClient from '../api/axiosClient';
 import { 
   FiHeart, 
   FiChevronLeft, 
@@ -9,7 +10,9 @@ import {
   FiMinus, 
   FiTruck, 
   FiRefreshCw, 
-  FiAward
+  FiAward,
+  FiCheck,
+  FiAlertCircle
 } from 'react-icons/fi';
 import { FaStar, FaHeart } from 'react-icons/fa';
 
@@ -307,20 +310,24 @@ const MOCK_PRODUCTS = [
 function ProductDetails() {
   const { id } = useParams();
 
-  
-  // Find current product in mock database (Default to id: 2 if not found or empty params)
-  const product = useMemo(() => {
-    const pId = id ? parseInt(id) : 2;
-    const found = MOCK_PRODUCTS.find(p => p.id === pId);
-    return found || MOCK_PRODUCTS[1]; // Fallback to Satin Midi Dress (id: 2)
+  // Active product fallback
+  const initialFallback = useMemo(() => {
+    const pId = id && !isNaN(id) ? parseInt(id) : 2;
+    return MOCK_PRODUCTS.find(p => p.id === pId) || MOCK_PRODUCTS[1];
   }, [id]);
 
-  // Gallery States
+  const [product, setProduct] = useState(initialFallback);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [, setLoading] = useState(true);
+
+  // Gallery & Purchase States
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name || '');
+  const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('S');
+  const [quantity, setQuantity] = useState(1);
   const [isFavorited, setIsFavorited] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [addedAlert, setAddedAlert] = useState(false);
 
   // Accordion Expand States
   const [accordions, setAccordions] = useState({
@@ -331,24 +338,96 @@ function ProductDetails() {
     reviews: false
   });
 
-  // Scroll to top when product ID changes
+  // Fetch product dynamically from Backend API
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        const res = await axiosClient.get(`/products/${id}`);
+        if (res && res.success && res.product && isMounted) {
+          setProduct(res.product);
+          if (res.related && Array.isArray(res.related)) {
+            setRelatedProducts(res.related);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend API product fetch note: using local cache/fallback', err.message);
+        if (isMounted) {
+          const pId = !isNaN(id) ? parseInt(id) : id;
+          const found = MOCK_PRODUCTS.find(p => p.id === pId || p._id === id);
+          if (found) setProduct(found);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProduct();
+    }
+    return () => { isMounted = false; };
+  }, [id]);
+
+  // Normalize Images
+  const galleryImages = useMemo(() => {
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      return product.images;
+    }
+    if (product.image) return [product.image];
+    return ['/images/prod_dress.jpg'];
+  }, [product]);
+
+  // Normalize Colors
+  const availableColors = useMemo(() => {
+    if (!product.colors || !Array.isArray(product.colors) || product.colors.length === 0) {
+      return [{ name: "Standard", value: "#1A1A1A" }];
+    }
+    return product.colors.map(col => {
+      if (typeof col === 'string') {
+        const lower = col.toLowerCase();
+        let hex = "#C6A482";
+        if (lower.includes('black')) hex = "#000000";
+        else if (lower.includes('white') || lower.includes('cream')) hex = "#F5ECE1";
+        else if (lower.includes('blue')) hex = "#8FB8DE";
+        else if (lower.includes('pink') || lower.includes('wine')) hex = "#9A1F40";
+        else if (lower.includes('green')) hex = "#1E3F20";
+        return { name: col, value: hex };
+      }
+      return col;
+    });
+  }, [product]);
+
+  // Normalize Sizes
+  const availableSizes = useMemo(() => {
+    if (product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0) {
+      return product.sizes;
+    }
+    return ["XS", "S", "M", "L", "XL"];
+  }, [product]);
+
+  // Scroll to top when product ID changes & initialize selections
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-    // Reset page states
     setActiveImageIndex(0);
-    setSelectedColor(product.colors[0]?.name || '');
-    setSelectedSize('S');
-  }, [product]);
+    setQuantity(1);
+    if (availableColors.length > 0) {
+      setSelectedColor(availableColors[0]?.name || '');
+    }
+    if (availableSizes.length > 0) {
+      setSelectedSize(availableSizes[0] || 'S');
+    }
+  }, [product, availableColors, availableSizes]);
 
   const handlePrevImage = () => {
     setActiveImageIndex(prev => 
-      prev === 0 ? product.images.length - 1 : prev - 1
+      prev === 0 ? galleryImages.length - 1 : prev - 1
     );
   };
 
   const handleNextImage = () => {
     setActiveImageIndex(prev => 
-      (prev + 1) % product.images.length
+      (prev + 1) % galleryImages.length
     );
   };
 
@@ -359,23 +438,46 @@ function ProductDetails() {
     }));
   };
 
-  // Get recommendations (excluding current product, random 4)
+  // Stock status checks
+  const isOutOfStock = product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0);
+  const isLowStock = !isOutOfStock && product.stock !== undefined && product.stock > 0 && product.stock <= 5;
+
+  const handleAddToBag = () => {
+    if (isOutOfStock) return;
+    setAddedAlert(true);
+    setTimeout(() => {
+      setAddedAlert(false);
+    }, 3000);
+  };
+
+  // Recommendations: dynamic related items or filtered mock
   const recommendations = useMemo(() => {
-    return MOCK_PRODUCTS
-      .filter(p => p.id !== product.id)
-      .slice(0, 4);
-  }, [product]);
+    if (relatedProducts.length > 0) return relatedProducts;
+    return MOCK_PRODUCTS.filter(p => p.id !== product.id && p._id !== product._id).slice(0, 4);
+  }, [relatedProducts, product]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 select-none font-sans">
       
+      {/* Toast Notification for Add to Bag */}
+      {addedAlert && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-3.5 rounded-sm shadow-xl flex items-center gap-3 animate-fade-in border border-gray-700">
+          <FiCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          <div className="text-xs">
+            <span className="font-semibold">{product.name}</span> ({quantity}x, Size: {selectedSize}) added to bag!
+          </div>
+        </div>
+      )}
+
       {/* Breadcrumbs */}
       <nav className="text-xs text-gray-400 font-light mb-8 flex items-center gap-2.5 uppercase tracking-widest">
         <Link to="/" className="hover:text-black transition-colors duration-200">Home</Link>
         <span className="text-gray-300">/</span>
-        <Link to="/shop" className="hover:text-black transition-colors duration-200">{product.category}</Link>
+        <Link to={`/shop?category=${encodeURIComponent(product.category || 'All')}`} className="hover:text-black transition-colors duration-200">
+          {product.category || 'Shop'}
+        </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-gray-800 font-medium">{product.name}</span>
+        <span className="text-gray-800 font-medium truncate max-w-xs">{product.name}</span>
       </nav>
 
       {/* Main product display split */}
@@ -384,9 +486,9 @@ function ProductDetails() {
         {/* Left Side: Product Image Gallery (Desktop: 7 Columns, Mobile: stacks) */}
         <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-4">
           
-          {/* Vertical Thumbnail Strip (Desktop only, or horizontal on tablet/mobile) */}
+          {/* Vertical Thumbnail Strip */}
           <div className="flex flex-row md:flex-col gap-2.5 w-full md:w-20 overflow-x-auto md:overflow-x-visible md:overflow-y-auto flex-shrink-0 scrollbar-none">
-            {product.images.map((imgUrl, idx) => (
+            {galleryImages.map((imgUrl, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveImageIndex(idx)}
@@ -402,7 +504,7 @@ function ProductDetails() {
           {/* Large Active Product Image Display */}
           <div className="relative aspect-[3/4] flex-1 bg-gray-50 overflow-hidden rounded-sm group select-none border border-gray-100/50">
             <img 
-              src={product.images[activeImageIndex]} 
+              src={galleryImages[activeImageIndex] || product.image || '/images/prod_dress.jpg'} 
               alt={product.name} 
               className="w-full h-full object-cover object-center transition-transform duration-500 ease-out" 
             />
@@ -410,27 +512,37 @@ function ProductDetails() {
             {/* Sale / Discount Overlay Badge */}
             {product.discount > 0 && (
               <span className="absolute top-4 left-4 bg-rose-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-sm shadow-sm">
-                Sale
+                Sale {product.discount}%
+              </span>
+            )}
+
+            {/* Stock status overlay badge */}
+            {isOutOfStock && (
+              <span className="absolute top-4 right-4 bg-gray-900/90 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-sm shadow-sm backdrop-blur-sm">
+                Out of Stock
               </span>
             )}
 
             {/* Gallery Left Arrow navigation overlay */}
-            <button 
-              onClick={handlePrevImage}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:scale-105 active:scale-95 duration-200"
-              aria-label="Previous image"
-            >
-              <FiChevronLeft className="w-5 h-5" />
-            </button>
+            {galleryImages.length > 1 && (
+              <>
+                <button 
+                  onClick={handlePrevImage}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:scale-105 active:scale-95 duration-200"
+                  aria-label="Previous image"
+                >
+                  <FiChevronLeft className="w-5 h-5" />
+                </button>
 
-            {/* Gallery Right Arrow navigation overlay */}
-            <button 
-              onClick={handleNextImage}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:scale-105 active:scale-95 duration-200"
-              aria-label="Next image"
-            >
-              <FiChevronRight className="w-5 h-5" />
-            </button>
+                <button 
+                  onClick={handleNextImage}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:scale-105 active:scale-95 duration-200"
+                  aria-label="Next image"
+                >
+                  <FiChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
 
             {/* Fullscreen Expand Icon Button overlay */}
             <button 
@@ -447,6 +559,22 @@ function ProductDetails() {
         <div className="lg:col-span-5 text-left">
           
           {/* Header titles */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+              {product.category || 'Apparel'}
+            </span>
+            {product.sku && (
+              <span className="text-[10px] font-mono text-gray-400">
+                SKU: {product.sku}
+              </span>
+            )}
+            {product.isBestseller && (
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">
+                Bestseller
+              </span>
+            )}
+          </div>
+
           <h1 className="font-serif text-3xl md:text-[34px] font-normal leading-tight text-gray-950 uppercase tracking-wide mb-3">
             {product.name}
           </h1>
@@ -474,8 +602,28 @@ function ProductDetails() {
               ))}
             </div>
             <span className="font-light hover:text-black cursor-pointer transition-colors duration-200">
-              ({product.reviewsCount} reviews)
+              ({product.reviewsCount || 42} reviews)
             </span>
+          </div>
+
+          {/* Stock Availability indicator */}
+          <div className="mb-6">
+            {isOutOfStock ? (
+              <div className="inline-flex items-center gap-2 text-xs font-semibold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-sm border border-rose-200">
+                <FiAlertCircle className="w-4 h-4" />
+                <span>Currently Out of Stock</span>
+              </div>
+            ) : isLowStock ? (
+              <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-sm border border-amber-200">
+                <FiAlertCircle className="w-4 h-4" />
+                <span>Only {product.stock} left in stock - order soon!</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-sm border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>In Stock ({product.stock ?? 25} available)</span>
+              </div>
+            )}
           </div>
 
           {/* Color swatches */}
@@ -484,7 +632,7 @@ function ProductDetails() {
               Color: <span className="text-gray-900 font-bold ml-1">{selectedColor}</span>
             </div>
             <div className="flex gap-3">
-              {product.colors.map(col => {
+              {availableColors.map(col => {
                 const isActive = selectedColor === col.name;
                 return (
                   <button
@@ -519,7 +667,7 @@ function ProductDetails() {
               </a>
             </div>
             <div className="flex flex-wrap gap-2.5">
-              {["XS", "S", "M", "L", "XL"].map(sz => {
+              {availableSizes.map(sz => {
                 const isSelected = selectedSize === sz;
                 return (
                   <button
@@ -538,18 +686,49 @@ function ProductDetails() {
             </div>
           </div>
 
-          {/* Action buttons (ADD TO BAG and HEART toggle) */}
-          <div className="flex gap-3 mb-8">
-            <button className="flex-1 bg-black hover:bg-rose-600 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm shadow-md transition-all active:scale-[0.98] duration-300">
-              Add To Bag
-            </button>
-            <button 
-              onClick={() => setIsFavorited(prev => !prev)}
-              className="w-14 h-14 border border-gray-200 hover:border-black hover:text-rose-600 rounded-sm flex items-center justify-center text-gray-700 transition-all active:scale-[0.95] duration-300 bg-white"
-              aria-label={isFavorited ? "Remove from wishlist" : "Add to wishlist"}
-            >
-              {isFavorited ? <FaHeart className="w-5 h-5 text-rose-600" /> : <FiHeart className="w-5 h-5" />}
-            </button>
+          {/* Quantity Selector + Action buttons */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Quantity:</span>
+              <div className="flex items-center border border-gray-200 rounded-sm bg-white">
+                <button 
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  disabled={quantity <= 1 || isOutOfStock}
+                  className="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-black hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <FiMinus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-10 text-center text-xs font-bold text-gray-900">{quantity}</span>
+                <button 
+                  onClick={() => setQuantity(q => (product.stock && q >= product.stock ? q : q + 1))}
+                  disabled={isOutOfStock || (product.stock !== undefined && quantity >= product.stock)}
+                  className="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-black hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <FiPlus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={handleAddToBag}
+                disabled={isOutOfStock}
+                className={`flex-1 text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm shadow-md transition-all active:scale-[0.98] duration-300 ${
+                  isOutOfStock
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
+                    : 'bg-black hover:bg-rose-600 text-white'
+                }`}
+              >
+                {isOutOfStock ? 'Out Of Stock' : 'Add To Bag'}
+              </button>
+              <button 
+                onClick={() => setIsFavorited(prev => !prev)}
+                className="w-14 h-14 border border-gray-200 hover:border-black hover:text-rose-600 rounded-sm flex items-center justify-center text-gray-700 transition-all active:scale-[0.95] duration-300 bg-white"
+                aria-label={isFavorited ? "Remove from wishlist" : "Add to wishlist"}
+              >
+                {isFavorited ? <FaHeart className="w-5 h-5 text-rose-600" /> : <FiHeart className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           {/* Feature list bullets with icons */}
@@ -686,8 +865,8 @@ function ProductDetails() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           {recommendations.map(p => (
             <Link 
-              key={p.id} 
-              to={`/product/${p.id}`}
+              key={p._id || p.id} 
+              to={`/product/${p._id || p.id}`}
               className="group flex flex-col animate-fade-in"
             >
               {/* Card Image */}
