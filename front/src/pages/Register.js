@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEyeOff, FiTag, FiRotateCcw, FiHeadphones } from 'react-icons/fi';
+import axiosClient from '../api/axiosClient';
+
 
 function Register() {
   const [firstName, setFirstName] = useState('');
@@ -15,24 +17,41 @@ function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+  
   const navigate = useNavigate();
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg('');
+
     if (password !== confirmPassword) {
-      alert("Passwords do not match!");
+      setErrorMsg("Passwords do not match!");
       return;
     }
-    // Simulate successful registration and redirect to account page
-    console.log('Registration details:', { 
-      firstName, 
-      lastName, 
-      email, 
-      phone: `${countryCode} ${phone}`, 
-      password, 
-      agreeTerms 
-    });
-    navigate('/account');
+
+    try {
+      setLoading(true);
+      const response = await axiosClient.post('/auth/register', {
+        firstName,
+        lastName,
+        email,
+        phone: `${countryCode} ${phone}`,
+        password,
+      });
+
+      // Save token and user details in localStorage
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      navigate('/account');
+    } catch (err) {
+      console.error('Registration error:', err);
+      setErrorMsg(err.response?.data?.message || 'An error occurred during registration. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,6 +127,12 @@ function Register() {
                 Sign up and start your style journey with us.
               </p>
             </div>
+
+            {errorMsg && (
+              <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-800 text-xs font-light px-4 py-3 rounded-sm">
+                {errorMsg}
+              </div>
+            )}
 
             <form onSubmit={handleRegisterSubmit} className="space-y-4 text-xs text-gray-700 text-left">
               
@@ -267,9 +292,10 @@ function Register() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full bg-black hover:bg-rose-600 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm"
+                  disabled={loading}
+                  className="w-full bg-black hover:bg-rose-600 disabled:bg-gray-400 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm"
                 >
-                  Create Account
+                  {loading ? 'Creating Account...' : 'Create Account'}
                 </button>
               </div>
 

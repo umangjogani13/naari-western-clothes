@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axiosClient from '../api/axiosClient';
 import { 
   FiUser, 
   FiShoppingBag, 
@@ -83,31 +84,85 @@ const WISHLIST_PREVIEW = [
 ];
 
 function Account() {
+  const navigate = useNavigate();
   // Sidebar active tab state
   const [activeTab, setActiveTab] = useState('profile');
   
   // Profile forms state
   const [profile, setProfile] = useState({
-    firstName: 'Aashi',
-    lastName: 'Shah',
-    email: 'aashi@email.com',
-    dob: '12 / 05 / 1998',
-    phone: '+91 98765 43210',
-    gender: 'Female'
+    firstName: '',
+    lastName: '',
+    email: '',
+    dob: '',
+    phone: '',
+    gender: ''
   });
   
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      try {
+        setLoading(true);
+        const data = await axiosClient.get('/auth/profile');
+        setProfile({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || '',
+          dob: data.dob || '',
+          phone: data.phone || '',
+          gender: data.gender || 'Female'
+        });
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        // If token is invalid or expired
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login');
+        } else {
+          setErrorMsg('Failed to load user profile.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    setSuccessMsg('Your personal details have been updated successfully.');
-    setTimeout(() => setSuccessMsg(''), 5000);
+    setSuccessMsg('');
+    setErrorMsg('');
+    try {
+      const response = await axiosClient.put('/auth/profile', {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        phone: profile.phone,
+        dob: profile.dob,
+        gender: profile.gender
+      });
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setSuccessMsg('Your personal details have been updated successfully.');
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err) {
+      console.error('Profile update error:', err);
+      setErrorMsg(err.response?.data?.message || 'Failed to update personal details.');
+    }
   };
 
   const sidebarMenu = [
@@ -119,6 +174,17 @@ function Account() {
     { id: 'settings', label: 'Account Settings', icon: <FiSettings /> },
     { id: 'logout', label: 'Logout', icon: <FiLogOut /> }
   ];
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[600px] flex items-center justify-center font-sans text-gray-500 text-xs tracking-wider uppercase font-semibold">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#C6A482] border-t-transparent rounded-full animate-spin"></div>
+          <span>Loading Account...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 select-none font-sans min-h-[900px] text-left">
@@ -143,7 +209,7 @@ function Account() {
             </div>
             <div>
               <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-                Hi, Aashi 👋
+                Hi, {profile.firstName || 'User'} 👋
               </h2>
               <p className="text-xs text-gray-400 font-light mt-0.5">Welcome back!</p>
             </div>
@@ -158,7 +224,9 @@ function Account() {
                   key={menu.id}
                   onClick={() => {
                     if (menu.id === 'logout') {
-                      window.location.href = '/';
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('user');
+                      navigate('/');
                     } else {
                       setActiveTab(menu.id);
                       // Scroll right panel into view on mobile
@@ -200,11 +268,11 @@ function Account() {
               Default Address
             </h3>
             <span className="font-bold text-gray-900 block mb-1">Home</span>
-            <p>Aashi Shah</p>
+            <p>{profile.firstName} {profile.lastName}</p>
             <p>123, Green Park Society</p>
             <p>Vesu, Surat, Gujarat - 395007</p>
             <p>India</p>
-            <p className="mt-1">+91 98765 43210</p>
+            <p className="mt-1">{profile.phone}</p>
             <div className="flex gap-4 mt-4 pt-3.5 border-t border-gray-100 text-[10px] font-semibold uppercase tracking-wider">
               <button className="text-gray-900 hover:text-rose-600 transition-colors">Edit</button>
               <button className="text-gray-400 hover:text-black transition-colors">Add New Address</button>
@@ -221,6 +289,13 @@ function Account() {
             <div className="bg-emerald-50 border border-emerald-100 rounded-sm p-4 text-xs text-emerald-800 font-light flex items-start gap-3 animate-fade-in">
               <FiCheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
               <div>{successMsg}</div>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div className="bg-rose-50 border border-rose-100 rounded-sm p-4 text-xs text-rose-800 font-light flex items-start gap-3 animate-fade-in">
+              <span className="text-rose-600 flex-shrink-0 text-sm">⚠️</span>
+              <div>{errorMsg}</div>
             </div>
           )}
 

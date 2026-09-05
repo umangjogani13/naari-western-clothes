@@ -1,19 +1,41 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEye, FiEyeOff, FiTag, FiRotateCcw, FiHeadphones } from 'react-icons/fi';
+import axiosClient from '../api/axiosClient';
+
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+  
   const navigate = useNavigate();
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    // Simulate successful login and redirect to account page
-    console.log('Login credentials:', { email, password, rememberMe });
-    navigate('/account');
+    setErrorMsg('');
+    
+    try {
+      setLoading(true);
+      const response = await axiosClient.post('/auth/login', {
+        email,
+        password,
+      });
+
+      // Store JWT token and user info
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      navigate('/account');
+    } catch (err) {
+      console.error('Login error:', err);
+      setErrorMsg(err.response?.data?.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -90,6 +112,12 @@ function Login() {
               </p>
             </div>
 
+            {errorMsg && (
+              <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-800 text-xs font-light px-4 py-3 rounded-sm">
+                {errorMsg}
+              </div>
+            )}
+
             <form onSubmit={handleLoginSubmit} className="space-y-5 text-xs text-gray-700">
               
               {/* Email Address field */}
@@ -155,9 +183,10 @@ function Login() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full bg-black hover:bg-rose-600 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm"
+                  disabled={loading}
+                  className="w-full bg-black hover:bg-rose-600 disabled:bg-gray-400 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm"
                 >
-                  Login
+                  {loading ? 'Logging in...' : 'Login'}
                 </button>
               </div>
 
