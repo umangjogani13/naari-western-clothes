@@ -34,6 +34,7 @@ import AdminHeroSlider from './admin/HeroSliderAdmin';
 import AdminValueProps from './admin/ValuePropsAdmin';
 import AdminWhyShop from './admin/WhyShopAdmin';
 import AdminBanners from './admin/Banners';
+import AdminInstagram from './admin/InstagramAdmin';
 import AdminReports from './admin/Reports';
 import AdminAnalytics from './admin/Analytics';
 import AdminSettings from './admin/Settings';
@@ -80,6 +81,7 @@ function App() {
         <Route path="/admin/value-props" element={<AdminValueProps />} />
         <Route path="/admin/why-shop" element={<AdminWhyShop />} />
         <Route path="/admin/banners" element={<AdminBanners />} />
+        <Route path="/admin/instagram" element={<AdminInstagram />} />
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/analytics" element={<AdminAnalytics />} />
         <Route path="/admin/settings" element={<AdminSettings />} />

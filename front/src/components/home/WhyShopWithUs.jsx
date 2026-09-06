@@ -34,59 +34,29 @@ const ICON_MAP = {
   FiZap
 };
 
-const DEFAULT_WHY_SHOP = {
-  heading: 'WHY SHOP WITH LAVÉRA?',
-  subheading: 'Designed for you. Loved by thousands.',
-  image: '/images/promo_look.jpg',
-  features: [
-    {
-      _id: 'ws-1',
-      title: 'Premium Quality',
-      description: 'Finest fabrics, rigorous checking, and attention to detail in every single stitch.',
-      icon: 'FiAward',
-      iconBg: '#F5EFE6'
-    },
-    {
-      _id: 'ws-2',
-      title: 'Trendy Styles',
-      description: 'Stay ahead of the curve with our curated drops matching global aesthetics.',
-      icon: 'FiTrendingUp',
-      iconBg: '#EAE8E3'
-    },
-    {
-      _id: 'ws-3',
-      title: 'Easy Returns',
-      description: 'We offer a hassle-free, no-questions-asked 7-day return and exchange policy.',
-      icon: 'FiRefreshCw',
-      iconBg: '#E5ECE5'
-    }
-  ]
-};
-
 function WhyShopWithUs() {
-  const [data, setData] = useState(DEFAULT_WHY_SHOP);
+  const [data, setData] = useState(null);
 
   useEffect(() => {
     const fetchWhyShopData = async () => {
       try {
         const res = await axiosClient.get('/why-shop');
-        if (res && res.success && res.data) {
-          setData({
-            heading: res.data.heading || DEFAULT_WHY_SHOP.heading,
-            subheading: res.data.subheading || DEFAULT_WHY_SHOP.subheading,
-            image: res.data.image || DEFAULT_WHY_SHOP.image,
-            features: (res.data.features && res.data.features.length > 0) 
-              ? res.data.features 
-              : DEFAULT_WHY_SHOP.features
-          });
+        if (res && res.success && res.data && Array.isArray(res.data.features) && res.data.features.length > 0) {
+          setData(res.data);
+        } else {
+          setData(null);
         }
       } catch (err) {
-        console.warn('[WhyShopWithUs] Backend API offline. Using fallback data.');
-        setData(DEFAULT_WHY_SHOP);
+        console.warn('[WhyShopWithUs] Backend API offline or empty.');
+        setData(null);
       }
     };
     fetchWhyShopData();
   }, []);
+
+  if (!data || !Array.isArray(data.features) || data.features.length === 0) {
+    return null;
+  }
 
   const renderIcon = (iconName) => {
     const IconComponent = ICON_MAP[iconName] || FiAward;

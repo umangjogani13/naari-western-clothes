@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiHeart, FiHeart as FiHeartOutline } from 'react-icons/fi';
 import { FaStar } from 'react-icons/fa';
 import { FALLBACK_PRODUCTS } from './homeData';
@@ -92,16 +93,18 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
                   >
                     {/* Image Wrapper */}
                     <div className="relative aspect-[3/4] w-full bg-gray-50 overflow-hidden mb-3 rounded-sm">
-                      <img 
-                        src={product.image} 
-                        alt={product.name} 
-                        className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                        loading="lazy"
-                      />
+                      <Link to={`/product/${product._id || product.id}`} className="block w-full h-full">
+                        <img 
+                          src={product.image} 
+                          alt={product.name} 
+                          className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      </Link>
                       
                       {/* Wishlist Button */}
                       <button 
-                        onClick={() => toggleFavorite(product.id)}
+                        onClick={() => toggleFavorite(product.id || product._id)}
                         className="absolute top-2.5 right-2.5 w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all z-10"
                         aria-label="Add to Wishlist"
                       >
@@ -113,21 +116,26 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
                       </button>
 
                       {/* Quick Add Overlay */}
-                      <div className="absolute inset-x-0 bottom-0 bg-white/95 backdrop-blur-[2px] py-2.5 text-center translate-y-full group-hover:translate-y-0 transition-transform duration-300 border-t border-gray-100 flex items-center justify-center cursor-pointer">
+                      <Link 
+                        to={`/product/${product._id || product.id}`}
+                        className="absolute inset-x-0 bottom-0 bg-white/95 backdrop-blur-[2px] py-2.5 text-center translate-y-full group-hover:translate-y-0 transition-transform duration-300 border-t border-gray-100 flex items-center justify-center cursor-pointer"
+                      >
                         <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.2em] uppercase hover:text-rose-600 transition-colors w-full h-full">
-                          QUICK ADD +
+                          VIEW DETAILS
                         </span>
-                      </div>
+                      </Link>
                     </div>
 
                     {/* Info */}
                     <div className="flex flex-col text-left space-y-1 px-0.5">
-                      <h3 className="text-xs sm:text-[13px] font-medium tracking-wide text-gray-900 group-hover:text-rose-600 transition-colors line-clamp-1">
-                        {product.name}
-                      </h3>
+                      <Link to={`/product/${product._id || product.id}`}>
+                        <h3 className="text-xs sm:text-[13px] font-medium tracking-wide text-gray-900 group-hover:text-rose-600 transition-colors line-clamp-1">
+                          {product.name}
+                        </h3>
+                      </Link>
                       
                       <span className="text-xs sm:text-sm font-bold text-gray-950">
-                        ₹{product.price.toLocaleString('en-IN')}
+                        ₹{Number(product.salePrice || product.price).toLocaleString('en-IN')}
                       </span>
 
                       {/* Ratings */}

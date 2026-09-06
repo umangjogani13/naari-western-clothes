@@ -4,44 +4,42 @@ const heroSlideSchema = new mongoose.Schema({
   subtitle: {
     type: String,
     trim: true,
-    default: 'NEW COLLECTION'
+    default: ''
   },
   title: {
     type: String,
     required: [true, 'Slide title is required'],
-    trim: true,
-    default: 'YOUR STYLE.\nYOUR STORY.'
+    trim: true
   },
   description: {
     type: String,
     trim: true,
-    default: 'Effortless fits for every you.'
+    default: ''
   },
   image: {
     type: String,
     required: [true, 'Slide image URL or path is required'],
-    trim: true,
-    default: '/images/hero_banner.jpg'
+    trim: true
   },
   primaryBtnText: {
     type: String,
     trim: true,
-    default: 'SHOP NEW ARRIVALS'
+    default: ''
   },
   primaryBtnLink: {
     type: String,
     trim: true,
-    default: '#new-arrivals'
+    default: ''
   },
   secondaryBtnText: {
     type: String,
     trim: true,
-    default: 'EXPLORE COLLECTION'
+    default: ''
   },
   secondaryBtnLink: {
     type: String,
     trim: true,
-    default: '#categories'
+    default: ''
   },
   order: {
     type: Number,

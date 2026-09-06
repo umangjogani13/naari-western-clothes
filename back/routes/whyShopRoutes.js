@@ -9,8 +9,10 @@ router.get('/', whyShopController.getWhyShop);
 router.get('/admin', whyShopController.getWhyShopAdmin);
 router.put('/config', whyShopController.updateConfig);
 router.post('/features', whyShopController.addFeature);
+router.put('/features/reorder', whyShopController.reorderFeatures);
 router.put('/features/:featureId', whyShopController.updateFeature);
 router.delete('/features/:featureId', whyShopController.deleteFeature);
+router.patch('/features/:featureId/move', whyShopController.moveFeature);
 router.patch('/features/:featureId/status', whyShopController.toggleFeatureStatus);
 
 module.exports = router;

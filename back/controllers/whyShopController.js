@@ -1,49 +1,21 @@
 const WhyShop = require('../models/whyShopModel');
 
-const DEFAULT_WHY_SHOP = {
-  heading: 'WHY SHOP WITH LAVÉRA?',
-  subheading: 'DESIGNED FOR YOU. LOVED BY THOUSANDS.',
-  image: '/images/promo_look.jpg',
-  features: [
-    {
-      title: 'Premium Quality',
-      description: 'Finest fabrics, rigorous checking, and attention to detail in every single stitch.',
-      icon: 'FiAward',
-      iconBg: '#F5EFE6',
-      order: 1,
-      status: 'Active'
-    },
-    {
-      title: 'Trendy Styles',
-      description: 'Stay ahead of the curve with our curated drops matching global aesthetics.',
-      icon: 'FiTrendingUp',
-      iconBg: '#EAE8E3',
-      order: 2,
-      status: 'Active'
-    },
-    {
-      title: 'Easy Returns',
-      description: 'We offer a hassle-free, no-questions-asked 7-day return and exchange policy.',
-      icon: 'FiRefreshCw',
-      iconBg: '#E5ECE5',
-      order: 3,
-      status: 'Active'
-    }
-  ]
-};
-
-// Helper to auto-seed if empty
+// Helper to get or create section document without mock features
 const getOrCreateDocument = async () => {
   try {
     let doc = await WhyShop.findOne();
     if (!doc) {
-      doc = new WhyShop(DEFAULT_WHY_SHOP);
+      doc = new WhyShop({
+        heading: '',
+        subheading: '',
+        image: '',
+        features: []
+      });
       await doc.save();
-      console.log('[WhyShop] Auto-seeded default "Why Shop With Us" data into MongoDB.');
     }
     return doc;
   } catch (err) {
-    console.warn('[WhyShop] Error retrieving/seeding document:', err.message);
+    console.warn('[WhyShop] Error retrieving/creating document:', err.message);
     return null;
   }
 };
@@ -52,27 +24,31 @@ const whyShopController = {
   // GET /api/why-shop (Public: Active features only)
   getWhyShop: async (req, res) => {
     try {
-      const doc = await getOrCreateDocument();
+      const doc = await WhyShop.findOne().lean();
       if (!doc) {
-        return res.json({ success: true, data: DEFAULT_WHY_SHOP });
+        return res.json({ success: true, data: null });
       }
 
       const activeFeatures = (doc.features || [])
         .filter(f => f.status === 'Active')
-        .sort((a, b) => a.order - b.order);
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      if (activeFeatures.length === 0) {
+        return res.json({ success: true, data: null });
+      }
 
       res.json({
         success: true,
         data: {
-          heading: doc.heading,
-          subheading: doc.subheading,
-          image: doc.image,
+          heading: doc.heading || '',
+          subheading: doc.subheading || '',
+          image: doc.image || '',
           features: activeFeatures
         }
       });
     } catch (error) {
       console.error('[WhyShop getWhyShop error]:', error.message);
-      res.json({ success: true, data: DEFAULT_WHY_SHOP });
+      res.json({ success: true, data: null });
     }
   },
 
@@ -84,15 +60,15 @@ const whyShopController = {
         return res.status(500).json({ success: false, message: 'Could not load section data' });
       }
 
-      const sortedFeatures = [...(doc.features || [])].sort((a, b) => a.order - b.order);
+      const sortedFeatures = [...(doc.features || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
 
       res.json({
         success: true,
         data: {
           _id: doc._id,
-          heading: doc.heading,
-          subheading: doc.subheading,
-          image: doc.image,
+          heading: doc.heading || '',
+          subheading: doc.subheading || '',
+          image: doc.image || '',
           features: sortedFeatures
         }
       });
@@ -108,9 +84,9 @@ const whyShopController = {
       const { heading, subheading, image } = req.body;
       const doc = await getOrCreateDocument();
 
-      if (heading !== undefined) doc.heading = heading;
-      if (subheading !== undefined) doc.subheading = subheading;
-      if (image !== undefined) doc.image = image;
+      if (heading !== undefined) doc.heading = heading.trim();
+      if (subheading !== undefined) doc.subheading = subheading.trim();
+      if (image !== undefined) doc.image = image.trim();
 
       await doc.save();
 
@@ -139,12 +115,18 @@ const whyShopController = {
 
       const doc = await getOrCreateDocument();
 
+      let featureOrder = Number(order);
+      if (isNaN(featureOrder) || featureOrder <= 0) {
+        const highestOrder = doc.features.reduce((max, f) => Math.max(max, f.order || 0), 0);
+        featureOrder = highestOrder + 1;
+      }
+
       const newFeature = {
         title: title.trim(),
         description: description.trim(),
-        icon: icon || 'FiAward',
-        iconBg: iconBg || '#F5EFE6',
-        order: Number(order) || (doc.features.length + 1),
+        icon: icon ? icon.trim() : 'FiAward',
+        iconBg: iconBg ? iconBg.trim() : '#F5EFE6',
+        order: featureOrder,
         status: status === 'Inactive' ? 'Inactive' : 'Active'
       };
 
@@ -157,7 +139,7 @@ const whyShopController = {
         success: true,
         message: 'Feature item added successfully',
         feature: savedFeature,
-        allFeatures: doc.features.sort((a, b) => a.order - b.order)
+        allFeatures: doc.features.sort((a, b) => (a.order || 0) - (b.order || 0))
       });
     } catch (error) {
       console.error('[WhyShop addFeature error]:', error.message);
@@ -171,6 +153,13 @@ const whyShopController = {
       const { featureId } = req.params;
       const { title, description, icon, iconBg, order, status } = req.body;
 
+      if (!title || !description) {
+        return res.status(400).json({
+          success: false,
+          message: 'Feature title and description are required.'
+        });
+      }
+
       const doc = await getOrCreateDocument();
       const feature = doc.features.id(featureId);
 
@@ -178,11 +167,11 @@ const whyShopController = {
         return res.status(404).json({ success: false, message: 'Feature not found' });
       }
 
-      if (title !== undefined) feature.title = title;
-      if (description !== undefined) feature.description = description;
-      if (icon !== undefined) feature.icon = icon;
-      if (iconBg !== undefined) feature.iconBg = iconBg;
-      if (order !== undefined) feature.order = Number(order);
+      if (title !== undefined) feature.title = title.trim();
+      if (description !== undefined) feature.description = description.trim();
+      if (icon !== undefined) feature.icon = icon ? icon.trim() : 'FiAward';
+      if (iconBg !== undefined) feature.iconBg = iconBg ? iconBg.trim() : '#F5EFE6';
+      if (order !== undefined) feature.order = Number(order) || 1;
       if (status !== undefined) feature.status = status;
 
       await doc.save();
@@ -191,7 +180,7 @@ const whyShopController = {
         success: true,
         message: 'Feature updated successfully',
         feature,
-        allFeatures: doc.features.sort((a, b) => a.order - b.order)
+        allFeatures: doc.features.sort((a, b) => (a.order || 0) - (b.order || 0))
       });
     } catch (error) {
       console.error('[WhyShop updateFeature error]:', error.message);
@@ -217,7 +206,7 @@ const whyShopController = {
         success: true,
         message: 'Feature deleted successfully',
         featureId,
-        allFeatures: doc.features.sort((a, b) => a.order - b.order)
+        allFeatures: doc.features.sort((a, b) => (a.order || 0) - (b.order || 0))
       });
     } catch (error) {
       console.error('[WhyShop deleteFeature error]:', error.message);
@@ -243,11 +232,92 @@ const whyShopController = {
         success: true,
         message: `Feature marked as ${feature.status}`,
         feature,
-        allFeatures: doc.features.sort((a, b) => a.order - b.order)
+        allFeatures: doc.features.sort((a, b) => (a.order || 0) - (b.order || 0))
       });
     } catch (error) {
       console.error('[WhyShop toggleFeatureStatus error]:', error.message);
       res.status(500).json({ success: false, message: 'Failed to toggle status', error: error.message });
+    }
+  },
+
+  // PUT /api/why-shop/features/reorder (Admin: Batch reorder features)
+  reorderFeatures: async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: 'orderedIds array is required' });
+      }
+
+      const doc = await getOrCreateDocument();
+      orderedIds.forEach((id, index) => {
+        const feature = doc.features.id(id);
+        if (feature) {
+          feature.order = index + 1;
+        }
+      });
+
+      await doc.save();
+
+      const sortedFeatures = doc.features.sort((a, b) => (a.order || 0) - (b.order || 0));
+      res.json({
+        success: true,
+        message: 'Features reordered successfully',
+        features: sortedFeatures,
+        allFeatures: sortedFeatures
+      });
+    } catch (error) {
+      console.error('[WhyShop reorderFeatures error]:', error.message);
+      res.status(500).json({ success: false, message: 'Server error reordering features', error: error.message });
+    }
+  },
+
+  // PATCH /api/why-shop/features/:featureId/move (Admin: Move feature up or down)
+  moveFeature: async (req, res) => {
+    try {
+      const { featureId } = req.params;
+      const { direction } = req.body; // 'up' or 'down'
+
+      const doc = await getOrCreateDocument();
+      const sorted = [...doc.features].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const currentIndex = sorted.findIndex(f => f._id.toString() === featureId);
+
+      if (currentIndex === -1) {
+        return res.status(404).json({ success: false, message: 'Feature not found' });
+      }
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= sorted.length) {
+        return res.json({ success: true, allFeatures: sorted, message: 'Feature already at boundary' });
+      }
+
+      const currentFeature = doc.features.id(featureId);
+      const targetFeature = doc.features.id(sorted[targetIndex]._id);
+
+      const tempOrder = currentFeature.order;
+      currentFeature.order = targetFeature.order;
+      targetFeature.order = tempOrder;
+
+      // Ensure distinct order values
+      if (currentFeature.order === targetFeature.order) {
+        sorted.forEach((f, idx) => {
+          const item = doc.features.id(f._id);
+          if (item) item.order = idx + 1;
+        });
+        currentFeature.order = targetIndex + 1;
+        targetFeature.order = currentIndex + 1;
+      }
+
+      await doc.save();
+
+      const updatedFeatures = doc.features.sort((a, b) => (a.order || 0) - (b.order || 0));
+      res.json({
+        success: true,
+        message: `Feature moved ${direction} successfully`,
+        allFeatures: updatedFeatures
+      });
+    } catch (error) {
+      console.error('[WhyShop moveFeature error]:', error.message);
+      res.status(500).json({ success: false, message: 'Server error moving feature', error: error.message });
     }
   }
 };

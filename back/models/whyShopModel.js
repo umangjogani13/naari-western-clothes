@@ -4,14 +4,12 @@ const featureSchema = new mongoose.Schema({
   title: {
     type: String,
     required: [true, 'Feature title is required'],
-    trim: true,
-    default: 'Premium Quality'
+    trim: true
   },
   description: {
     type: String,
     required: [true, 'Feature description is required'],
-    trim: true,
-    default: 'Finest fabrics, rigorous checking, and attention to detail in every single stitch.'
+    trim: true
   },
   icon: {
     type: String,
@@ -40,17 +38,17 @@ const whyShopSchema = new mongoose.Schema({
   heading: {
     type: String,
     trim: true,
-    default: 'WHY SHOP WITH LAVÉRA?'
+    default: ''
   },
   subheading: {
     type: String,
     trim: true,
-    default: 'DESIGNED FOR YOU. LOVED BY THOUSANDS.'
+    default: ''
   },
   image: {
     type: String,
     trim: true,
-    default: '/images/promo_look.jpg'
+    default: ''
   },
   features: [featureSchema]
 }, {

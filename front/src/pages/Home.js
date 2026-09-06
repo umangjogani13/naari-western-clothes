@@ -19,23 +19,28 @@ function Home() {
   const [products, setProducts] = useState(FALLBACK_PRODUCTS);
   const [loading, setLoading] = useState(true);
 
-  // Fetch products on mount
+  // Fetch dynamic new arrival products on mount
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await axiosClient.get('/products');
+        let response = await axiosClient.get('/products?newArrival=true&limit=8');
+        if (!response || !response.success || !Array.isArray(response.products) || response.products.length < 3) {
+          response = await axiosClient.get('/products?limit=8');
+        }
+
         if (response && response.success && Array.isArray(response.products)) {
-          // If server products load, merge with fallback fields like color/reviews count
           const merged = response.products.map(p => {
             const fb = FALLBACK_PRODUCTS.find(f => f.name.toLowerCase() === p.name.toLowerCase()) || {};
             return {
               ...p,
               reviewsCount: p.reviewsCount || fb.reviewsCount || 50,
-              colors: p.colors || fb.colors || ["#FFFFFF", "#000000"]
+              colors: (p.colors && p.colors.length > 0) 
+                ? p.colors.map(c => typeof c === 'string' ? c : c.value) 
+                : (fb.colors || ["#FFFFFF", "#000000"])
             };
           });
-          setProducts(merged.slice(0, 6));
+          setProducts(merged);
         }
       } catch (err) {
         console.warn('Backend API offline. Using fallback mock products.');

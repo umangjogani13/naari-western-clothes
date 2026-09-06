@@ -18,7 +18,8 @@ import {
   FiTrendingUp, 
   FiSettings, 
   FiLogOut,
-  FiX
+  FiX,
+  FiInstagram
 } from 'react-icons/fi';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -49,6 +50,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { id: 'value-props', label: 'Value Props', icon: FiAward, path: '/admin/value-props' },
     { id: 'why-shop', label: 'Why Shop With Us', icon: FiHelpCircle, path: '/admin/why-shop' },
     { id: 'banners', label: 'Banners', icon: FiImage, path: '/admin/banners' },
+    { id: 'instagram', label: 'Instagram Feed', icon: FiInstagram, path: '/admin/instagram' },
     { id: 'reports', label: 'Reports', icon: FiBarChart2, path: '/admin/reports' },
     { id: 'analytics', label: 'Analytics', icon: FiTrendingUp, path: '/admin/analytics' },
     { id: 'settings', label: 'Settings', icon: FiSettings, path: '/admin/settings' },

@@ -1,84 +1,27 @@
 const HeroSlide = require('../models/heroSliderModel');
 
-const DEFAULT_SLIDES = [
-  {
-    subtitle: 'NEW COLLECTION',
-    title: 'YOUR STYLE.\nYOUR STORY.',
-    description: 'Effortless fits for every you.',
-    image: '/images/hero_banner.jpg',
-    primaryBtnText: 'SHOP NEW ARRIVALS',
-    primaryBtnLink: '#new-arrivals',
-    secondaryBtnText: 'EXPLORE COLLECTION',
-    secondaryBtnLink: '#categories',
-    order: 1,
-    status: 'Active',
-    bgColor: '#EAE3DB'
-  },
-  {
-    subtitle: 'SUMMER EXCLUSIVE',
-    title: 'TIMELESS ELEGANCE.\nMODERN SILHOUETTES.',
-    description: 'Discover handpicked fabrics tailored for your everyday confidence.',
-    image: '/images/cat_dresses.jpg',
-    primaryBtnText: 'SHOP DRESSES',
-    primaryBtnLink: '/category/dresses',
-    secondaryBtnText: 'VIEW BESTSELLERS',
-    secondaryBtnLink: '#categories',
-    order: 2,
-    status: 'Active',
-    bgColor: '#E2D9CF'
-  },
-  {
-    subtitle: 'TRENDING DROPS',
-    title: 'EFFORTLESS CHIC.\nELEVATED EVERYDAY.',
-    description: 'Upgrade your wardrobe with statement co-ords and versatile staples.',
-    image: '/images/cat_coords.jpg',
-    primaryBtnText: 'SHOP CO-ORDS',
-    primaryBtnLink: '/category/co-ords',
-    secondaryBtnText: 'EXPLORE ALL',
-    secondaryBtnLink: '/shop',
-    order: 3,
-    status: 'Active',
-    bgColor: '#E8DFD5'
-  }
-];
-
-// Helper to auto-seed if empty
-const ensureSeedData = async () => {
-  try {
-    const count = await HeroSlide.countDocuments();
-    if (count === 0) {
-      await HeroSlide.insertMany(DEFAULT_SLIDES);
-      console.log('[HeroSlider] Auto-seeded default hero slides into MongoDB.');
-    }
-  } catch (err) {
-    console.warn('[HeroSlider] Seed error or MongoDB offline:', err.message);
-  }
-};
-
 const heroSliderController = {
   // GET /api/hero-slider (Public: Active slides only)
   getActiveSlides: async (req, res) => {
     try {
-      await ensureSeedData();
       const slides = await HeroSlide.find({ status: 'Active' })
         .sort({ order: 1, createdAt: 1 })
         .lean();
 
       if (!slides || slides.length === 0) {
-        return res.json({ success: true, slides: DEFAULT_SLIDES });
+        return res.json({ success: true, slides: [] });
       }
 
       res.json({ success: true, slides });
     } catch (error) {
       console.error('[HeroSlider getActiveSlides error]:', error.message);
-      res.json({ success: true, slides: DEFAULT_SLIDES });
+      res.json({ success: true, slides: [] });
     }
   },
 
   // GET /api/hero-slider/admin (Admin: All slides)
   getAllSlides: async (req, res) => {
     try {
-      await ensureSeedData();
       const slides = await HeroSlide.find()
         .sort({ order: 1, createdAt: 1 })
         .lean();
@@ -115,17 +58,17 @@ const heroSliderController = {
       }
 
       const newSlide = new HeroSlide({
-        subtitle: subtitle || 'NEW COLLECTION',
-        title,
-        description: description || '',
-        image,
-        primaryBtnText: primaryBtnText || 'SHOP NOW',
-        primaryBtnLink: primaryBtnLink || '#',
-        secondaryBtnText: secondaryBtnText || '',
-        secondaryBtnLink: secondaryBtnLink || '',
+        subtitle: subtitle !== undefined ? subtitle.trim() : '',
+        title: title.trim(),
+        description: description !== undefined ? description.trim() : '',
+        image: image.trim(),
+        primaryBtnText: primaryBtnText !== undefined ? primaryBtnText.trim() : '',
+        primaryBtnLink: primaryBtnLink !== undefined ? primaryBtnLink.trim() : '',
+        secondaryBtnText: secondaryBtnText !== undefined ? secondaryBtnText.trim() : '',
+        secondaryBtnLink: secondaryBtnLink !== undefined ? secondaryBtnLink.trim() : '',
         order: Number(order) || 1,
         status: status === 'Inactive' ? 'Inactive' : 'Active',
-        bgColor: bgColor || '#EAE3DB'
+        bgColor: bgColor ? bgColor.trim() : '#EAE3DB'
       });
 
       await newSlide.save();
@@ -159,20 +102,27 @@ const heroSliderController = {
         bgColor
       } = req.body;
 
+      if (!title || !image) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Title and Image URL are required fields.' 
+        });
+      }
+
       const updated = await HeroSlide.findByIdAndUpdate(
         id,
         {
-          subtitle,
-          title,
-          description,
-          image,
-          primaryBtnText,
-          primaryBtnLink,
-          secondaryBtnText,
-          secondaryBtnLink,
-          order: Number(order),
-          status,
-          bgColor
+          subtitle: subtitle !== undefined ? subtitle.trim() : '',
+          title: title.trim(),
+          description: description !== undefined ? description.trim() : '',
+          image: image.trim(),
+          primaryBtnText: primaryBtnText !== undefined ? primaryBtnText.trim() : '',
+          primaryBtnLink: primaryBtnLink !== undefined ? primaryBtnLink.trim() : '',
+          secondaryBtnText: secondaryBtnText !== undefined ? secondaryBtnText.trim() : '',
+          secondaryBtnLink: secondaryBtnLink !== undefined ? secondaryBtnLink.trim() : '',
+          order: Number(order) || 1,
+          status: status === 'Inactive' ? 'Inactive' : 'Active',
+          bgColor: bgColor ? bgColor.trim() : '#EAE3DB'
         },
         { returnDocument: 'after', runValidators: true }
       ).lean();
@@ -234,6 +184,80 @@ const heroSliderController = {
     } catch (error) {
       console.error('[HeroSlider toggleStatus error]:', error.message);
       res.status(500).json({ success: false, message: 'Server error toggling status', error: error.message });
+    }
+  },
+
+  // PUT /api/hero-slider/reorder (Admin: Batch reorder slides)
+  reorderSlides: async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: 'orderedIds array is required' });
+      }
+
+      const updateOps = orderedIds.map((id, index) =>
+        HeroSlide.findByIdAndUpdate(id, { order: index + 1 }, { new: true })
+      );
+      await Promise.all(updateOps);
+
+      const slides = await HeroSlide.find().sort({ order: 1, createdAt: 1 }).lean();
+      res.json({
+        success: true,
+        message: 'Slides reordered successfully',
+        slides
+      });
+    } catch (error) {
+      console.error('[HeroSlider reorderSlides error]:', error.message);
+      res.status(500).json({ success: false, message: 'Server error reordering slides', error: error.message });
+    }
+  },
+
+  // PATCH /api/hero-slider/:id/move (Admin: Move slide up or down)
+  moveSlide: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { direction } = req.body; // 'up' or 'down'
+
+      const allSlides = await HeroSlide.find().sort({ order: 1, createdAt: 1 });
+      const currentIndex = allSlides.findIndex(s => s._id.toString() === id);
+
+      if (currentIndex === -1) {
+        return res.status(404).json({ success: false, message: 'Slide not found' });
+      }
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= allSlides.length) {
+        return res.json({ success: true, slides: allSlides, message: 'Slide already at the boundary' });
+      }
+
+      const currentSlide = allSlides[currentIndex];
+      const targetSlide = allSlides[targetIndex];
+
+      const tempOrder = currentSlide.order;
+      currentSlide.order = targetSlide.order;
+      targetSlide.order = tempOrder;
+
+      // Ensure distinct order values
+      if (currentSlide.order === targetSlide.order) {
+        allSlides.forEach((s, idx) => {
+          s.order = idx + 1;
+        });
+        currentSlide.order = targetIndex + 1;
+        targetSlide.order = currentIndex + 1;
+        await Promise.all(allSlides.map(s => s.save()));
+      } else {
+        await Promise.all([currentSlide.save(), targetSlide.save()]);
+      }
+
+      const updatedSlides = await HeroSlide.find().sort({ order: 1, createdAt: 1 }).lean();
+      res.json({
+        success: true,
+        message: `Slide moved ${direction} successfully`,
+        slides: updatedSlides
+      });
+    } catch (error) {
+      console.error('[HeroSlider moveSlide error]:', error.message);
+      res.status(500).json({ success: false, message: 'Server error moving slide', error: error.message });
     }
   }
 };

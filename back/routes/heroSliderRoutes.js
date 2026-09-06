@@ -8,8 +8,10 @@ router.get('/', heroSliderController.getActiveSlides);
 // Admin routes: Manage slides
 router.get('/admin', heroSliderController.getAllSlides);
 router.post('/', heroSliderController.createSlide);
+router.put('/reorder', heroSliderController.reorderSlides);
 router.put('/:id', heroSliderController.updateSlide);
 router.delete('/:id', heroSliderController.deleteSlide);
+router.patch('/:id/move', heroSliderController.moveSlide);
 router.patch('/:id/status', heroSliderController.toggleStatus);
 
 module.exports = router;

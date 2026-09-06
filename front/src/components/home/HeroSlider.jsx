@@ -2,23 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axiosClient from '../../api/axiosClient';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
-const FALLBACK_SLIDES = [
-  {
-    _id: 'default-1',
-    subtitle: 'NEW COLLECTION',
-    title: 'YOUR STYLE.\nYOUR STORY.',
-    description: 'Effortless fits for every you.',
-    image: '/images/hero_banner.jpg',
-    primaryBtnText: 'SHOP NEW ARRIVALS',
-    primaryBtnLink: '#new-arrivals',
-    secondaryBtnText: 'EXPLORE COLLECTION',
-    secondaryBtnLink: '#categories',
-    bgColor: '#EAE3DB'
-  }
-];
-
 function HeroSlider() {
-  const [slides, setSlides] = useState(FALLBACK_SLIDES);
+  const [slides, setSlides] = useState([]);
   const [heroSlide, setHeroSlide] = useState(0);
 
   // Fetch active slides from backend API
@@ -28,10 +13,12 @@ function HeroSlider() {
         const res = await axiosClient.get('/hero-slider');
         if (res && res.success && Array.isArray(res.slides) && res.slides.length > 0) {
           setSlides(res.slides);
+        } else {
+          setSlides([]);
         }
       } catch (err) {
-        console.warn('[HeroSlider] Backend API unreachable or empty. Using fallback slide.');
-        setSlides(FALLBACK_SLIDES);
+        console.warn('[HeroSlider] Backend API unreachable or empty.');
+        setSlides([]);
       }
     };
     fetchHeroSlides();
@@ -48,8 +35,16 @@ function HeroSlider() {
     return () => clearInterval(timer);
   }, [totalSlides]);
 
-  const activeIndex = totalSlides > 0 ? (heroSlide % totalSlides) : 0;
-  const currentSlide = slides[activeIndex] || FALLBACK_SLIDES[0];
+  if (totalSlides === 0) {
+    return null;
+  }
+
+  const activeIndex = heroSlide % totalSlides;
+  const currentSlide = slides[activeIndex];
+
+  if (!currentSlide) {
+    return null;
+  }
 
   const handlePrev = () => {
     setHeroSlide((prev) => (prev - 1 + totalSlides) % totalSlides);

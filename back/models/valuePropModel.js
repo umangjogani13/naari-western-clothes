@@ -4,20 +4,17 @@ const valuePropSchema = new mongoose.Schema({
   title: {
     type: String,
     required: [true, 'Title is required'],
-    trim: true,
-    default: 'FREE SHIPPING'
+    trim: true
   },
   subtitle: {
     type: String,
     required: [true, 'Subtitle / Description is required'],
-    trim: true,
-    default: 'On orders above ₹999'
+    trim: true
   },
   icon: {
     type: String,
     required: [true, 'Icon identifier is required'],
-    trim: true,
-    default: 'FiTruck'
+    trim: true
   },
   order: {
     type: Number,

@@ -1,80 +1,27 @@
 const ValueProp = require('../models/valuePropModel');
 
-const DEFAULT_VALUE_PROPS = [
-  {
-    title: 'FREE SHIPPING',
-    subtitle: 'On orders above ₹999',
-    icon: 'FiTruck',
-    order: 1,
-    status: 'Active'
-  },
-  {
-    title: 'EASY RETURNS',
-    subtitle: '7-day return policy',
-    icon: 'FiRefreshCw',
-    order: 2,
-    status: 'Active'
-  },
-  {
-    title: 'SECURE PAYMENT',
-    subtitle: '100% secure checkout',
-    icon: 'FiShield',
-    order: 3,
-    status: 'Active'
-  },
-  {
-    title: 'BEST QUALITY',
-    subtitle: 'Handpicked just for you',
-    icon: 'FiAward',
-    order: 4,
-    status: 'Active'
-  },
-  {
-    title: 'CUSTOMER SUPPORT',
-    subtitle: "We're here to help you",
-    icon: 'FiHeadphones',
-    order: 5,
-    status: 'Active'
-  }
-];
-
-// Helper to auto-seed if collection is empty
-const ensureSeedData = async () => {
-  try {
-    const count = await ValueProp.countDocuments();
-    if (count === 0) {
-      await ValueProp.insertMany(DEFAULT_VALUE_PROPS);
-      console.log('[ValueProp] Auto-seeded default value props into MongoDB.');
-    }
-  } catch (err) {
-    console.warn('[ValueProp] Seed error or MongoDB offline:', err.message);
-  }
-};
-
 const valuePropController = {
   // GET /api/value-props (Public: Active items only)
   getActiveValueProps: async (req, res) => {
     try {
-      await ensureSeedData();
       const items = await ValueProp.find({ status: 'Active' })
         .sort({ order: 1, createdAt: 1 })
         .lean();
 
       if (!items || items.length === 0) {
-        return res.json({ success: true, items: DEFAULT_VALUE_PROPS });
+        return res.json({ success: true, items: [] });
       }
 
       res.json({ success: true, items });
     } catch (error) {
       console.error('[ValueProp getActiveValueProps error]:', error.message);
-      res.json({ success: true, items: DEFAULT_VALUE_PROPS });
+      res.json({ success: true, items: [] });
     }
   },
 
   // GET /api/value-props/admin (Admin: All items)
   getAllValueProps: async (req, res) => {
     try {
-      await ensureSeedData();
       const items = await ValueProp.find()
         .sort({ order: 1, createdAt: 1 })
         .lean();
@@ -98,11 +45,17 @@ const valuePropController = {
         });
       }
 
+      let itemOrder = Number(order);
+      if (isNaN(itemOrder) || itemOrder <= 0) {
+        const highestItem = await ValueProp.findOne().sort({ order: -1 }).lean();
+        itemOrder = highestItem ? (highestItem.order || 0) + 1 : 1;
+      }
+
       const newItem = new ValueProp({
-        title,
-        subtitle,
-        icon: icon || 'FiTruck',
-        order: Number(order) || 1,
+        title: title.trim(),
+        subtitle: subtitle.trim(),
+        icon: icon ? icon.trim() : 'FiTruck',
+        order: itemOrder,
         status: status === 'Inactive' ? 'Inactive' : 'Active'
       });
 
@@ -125,14 +78,21 @@ const valuePropController = {
       const { id } = req.params;
       const { title, subtitle, icon, order, status } = req.body;
 
+      if (!title || !subtitle) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title and Subtitle/Description are required.'
+        });
+      }
+
       const updated = await ValueProp.findByIdAndUpdate(
         id,
         {
-          title,
-          subtitle,
-          icon,
-          order: Number(order),
-          status
+          title: title.trim(),
+          subtitle: subtitle.trim(),
+          icon: icon ? icon.trim() : 'FiTruck',
+          order: Number(order) || 1,
+          status: status === 'Inactive' ? 'Inactive' : 'Active'
         },
         { returnDocument: 'after', runValidators: true }
       ).lean();
@@ -194,6 +154,80 @@ const valuePropController = {
     } catch (error) {
       console.error('[ValueProp toggleStatus error]:', error.message);
       res.status(500).json({ success: false, message: 'Server error toggling status', error: error.message });
+    }
+  },
+
+  // PUT /api/value-props/reorder (Admin: Batch reorder items)
+  reorderValueProps: async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: 'orderedIds array is required' });
+      }
+
+      const updateOps = orderedIds.map((id, index) =>
+        ValueProp.findByIdAndUpdate(id, { order: index + 1 }, { new: true })
+      );
+      await Promise.all(updateOps);
+
+      const items = await ValueProp.find().sort({ order: 1, createdAt: 1 }).lean();
+      res.json({
+        success: true,
+        message: 'Value props reordered successfully',
+        items
+      });
+    } catch (error) {
+      console.error('[ValueProp reorderValueProps error]:', error.message);
+      res.status(500).json({ success: false, message: 'Server error reordering value props', error: error.message });
+    }
+  },
+
+  // PATCH /api/value-props/:id/move (Admin: Move item up or down)
+  moveValueProp: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { direction } = req.body; // 'up' or 'down'
+
+      const allItems = await ValueProp.find().sort({ order: 1, createdAt: 1 });
+      const currentIndex = allItems.findIndex(i => i._id.toString() === id);
+
+      if (currentIndex === -1) {
+        return res.status(404).json({ success: false, message: 'Value prop item not found' });
+      }
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= allItems.length) {
+        return res.json({ success: true, items: allItems, message: 'Item already at the boundary' });
+      }
+
+      const currentItem = allItems[currentIndex];
+      const targetItem = allItems[targetIndex];
+
+      const tempOrder = currentItem.order;
+      currentItem.order = targetItem.order;
+      targetItem.order = tempOrder;
+
+      // Ensure distinct order values
+      if (currentItem.order === targetItem.order) {
+        allItems.forEach((item, idx) => {
+          item.order = idx + 1;
+        });
+        currentItem.order = targetIndex + 1;
+        targetItem.order = currentIndex + 1;
+        await Promise.all(allItems.map(i => i.save()));
+      } else {
+        await Promise.all([currentItem.save(), targetItem.save()]);
+      }
+
+      const updatedItems = await ValueProp.find().sort({ order: 1, createdAt: 1 }).lean();
+      res.json({
+        success: true,
+        message: `Item moved ${direction} successfully`,
+        items: updatedItems
+      });
+    } catch (error) {
+      console.error('[ValueProp moveValueProp error]:', error.message);
+      res.status(500).json({ success: false, message: 'Server error moving item', error: error.message });
     }
   }
 };

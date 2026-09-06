@@ -4,41 +4,8 @@ import { FiTruck, FiRefreshCw, FiShield, FiAward, FiHeadphones,FiPackage,FiCredi
 
 const ICON_MAP = { FiTruck,FiRefreshCw,FiShield,FiAward,FiHeadphones,FiPackage,FiCreditCard,FiClock,FiCheckCircle,FiGift,FiStar,FiHeart,FiPercent,FiLock };
 
-const FALLBACK_VALUE_PROPS = [
-  {
-    _id: 'vp-1',
-    title: 'FREE SHIPPING',
-    subtitle: 'On orders above ₹999',
-    icon: 'FiTruck'
-  },
-  {
-    _id: 'vp-2',
-    title: 'EASY RETURNS',
-    subtitle: '7-day return policy',
-    icon: 'FiRefreshCw'
-  },
-  {
-    _id: 'vp-3',
-    title: 'SECURE PAYMENT',
-    subtitle: '100% secure checkout',
-    icon: 'FiShield'
-  },
-  {
-    _id: 'vp-4',
-    title: 'BEST QUALITY',
-    subtitle: 'Handpicked just for you',
-    icon: 'FiAward'
-  },
-  {
-    _id: 'vp-5',
-    title: 'CUSTOMER SUPPORT',
-    subtitle: "We're here to help you",
-    icon: 'FiHeadphones'
-  }
-];
-
 function ValuePropBar() {
-  const [items, setItems] = useState(FALLBACK_VALUE_PROPS);
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
     const fetchValueProps = async () => {
@@ -46,21 +13,27 @@ function ValuePropBar() {
         const res = await axiosClient.get('/value-props');
         if (res && res.success && Array.isArray(res.items) && res.items.length > 0) {
           setItems(res.items);
+        } else {
+          setItems([]);
         }
       } catch (err) {
-        console.warn('[ValuePropBar] Backend API offline. Using fallback value propositions.');
-        setItems(FALLBACK_VALUE_PROPS);
+        console.warn('[ValuePropBar] Backend API offline or empty.');
+        setItems([]);
       }
     };
     fetchValueProps();
   }, []);
 
+  const itemCount = items.length;
+
+  if (itemCount === 0) {
+    return null;
+  }
+
   const renderIcon = (iconName) => {
     const IconComponent = ICON_MAP[iconName] || FiAward;
     return <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 text-gray-800 flex-shrink-0" />;
   };
-
-  const itemCount = items.length;
 
   // Compute responsive columns dynamically based on item count
   const getGridColsClass = () => {
