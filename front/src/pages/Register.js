@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEyeOff, FiTag, FiRotateCcw, FiHeadphones } from 'react-icons/fi';
-import axiosClient from '../api/axiosClient';
-
+import { useDispatch, useSelector } from 'react-redux';
+import { FiEye, FiEyeOff, FiTag, FiRotateCcw, FiHeadphones, FiAlertCircle } from 'react-icons/fi';
+import { registerUser, clearAuthError } from '../store/slices/authSlice';
 
 function Register() {
   const [firstName, setFirstName] = useState('');
@@ -16,43 +16,65 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
-  
-  const [errorMsg, setErrorMsg] = useState('');
-  const [loading, setLoading] = useState(false);
-  
+  const [localError, setLocalError] = useState('');
+
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const { isAuthenticated, loading, error: authError } = useSelector((state) => state.auth || {});
+
+  // If already authenticated, redirect to account
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/account', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Clear errors on unmount
+  useEffect(() => {
+    return () => {
+      dispatch(clearAuthError());
+    };
+  }, [dispatch]);
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsg('');
+    setLocalError('');
+    dispatch(clearAuthError());
 
-    if (password !== confirmPassword) {
-      setErrorMsg("Passwords do not match!");
+    if (!agreeTerms) {
+      setLocalError("Please agree to the Terms & Conditions and Privacy Policy.");
       return;
     }
 
-    try {
-      setLoading(true);
-      const response = await axiosClient.post('/auth/register', {
-        firstName,
-        lastName,
-        email,
-        phone: `${countryCode} ${phone}`,
+    if (password.length < 6) {
+      setLocalError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setLocalError("Passwords do not match!");
+      return;
+    }
+
+    const fullPhone = `${countryCode} ${phone.trim()}`;
+
+    const resultAction = await dispatch(
+      registerUser({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phone: fullPhone,
         password,
-      });
+      })
+    );
 
-      // Save token and user details in localStorage
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-
-      navigate('/account');
-    } catch (err) {
-      console.error('Registration error:', err);
-      setErrorMsg(err.response?.data?.message || 'An error occurred during registration. Please try again.');
-    } finally {
-      setLoading(false);
+    if (registerUser.fulfilled.match(resultAction)) {
+      navigate('/account', { replace: true });
     }
   };
+
+  const activeError = localError || authError;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 select-none font-sans min-h-[900px] text-left">
@@ -68,7 +90,7 @@ function Register() {
       <div className="max-w-5xl mx-auto bg-white border border-gray-100 rounded-sm overflow-hidden shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-12">
           
-          {/* Left Column: Visual panel (5 columns on large screen, matching mockup layout) */}
+          {/* Left Column: Visual panel */}
           <div className="lg:col-span-5 bg-[#FAF6F0] p-8 sm:p-12 flex flex-col justify-between min-h-[550px] lg:min-h-[650px]">
             
             {/* Header Text block */}
@@ -115,7 +137,7 @@ function Register() {
 
           </div>
 
-          {/* Right Column: Register Form panel (7 columns on large screen) */}
+          {/* Right Column: Register Form panel */}
           <div className="lg:col-span-7 bg-white p-8 sm:p-12 lg:px-16 lg:py-12 flex flex-col justify-center">
             
             {/* Header Title */}
@@ -128,9 +150,10 @@ function Register() {
               </p>
             </div>
 
-            {errorMsg && (
-              <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-800 text-xs font-light px-4 py-3 rounded-sm">
-                {errorMsg}
+            {activeError && (
+              <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium px-4 py-3 rounded-lg flex items-center gap-2">
+                <FiAlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                <span>{activeError}</span>
               </div>
             )}
 
@@ -146,7 +169,10 @@ function Register() {
                     id="firstName"
                     type="text"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (activeError) { setLocalError(''); dispatch(clearAuthError()); }
+                    }}
                     placeholder="Enter your first name"
                     className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 outline-none focus:border-black font-light tracking-wide transition-colors"
                     required
@@ -161,7 +187,10 @@ function Register() {
                     id="lastName"
                     type="text"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (activeError) { setLocalError(''); dispatch(clearAuthError()); }
+                    }}
                     placeholder="Enter your last name"
                     className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 outline-none focus:border-black font-light tracking-wide transition-colors"
                     required
@@ -178,14 +207,17 @@ function Register() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (activeError) { setLocalError(''); dispatch(clearAuthError()); }
+                  }}
                   placeholder="Enter your email address"
                   className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 outline-none focus:border-black font-light tracking-wide transition-colors"
                   required
                 />
               </div>
 
-              {/* Phone Number with custom Prefix Selector */}
+              {/* Phone Number with Country Code */}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="phone" className="font-bold text-gray-800 uppercase tracking-widest text-[10px]">
                   Phone Number <span className="text-rose-600">*</span>
@@ -213,7 +245,10 @@ function Register() {
                     id="phone"
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (activeError) { setLocalError(''); dispatch(clearAuthError()); }
+                    }}
                     placeholder="Enter your phone number"
                     className="flex-1 bg-white border border-gray-200 rounded-sm py-3.5 px-4 outline-none focus:border-black font-light tracking-wide transition-colors"
                     required
@@ -224,17 +259,21 @@ function Register() {
               {/* Password */}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="password" className="font-bold text-gray-800 uppercase tracking-widest text-[10px]">
-                  Password <span className="text-rose-600">*</span>
+                  Password (min 6 chars) <span className="text-rose-600">*</span>
                 </label>
                 <div className="relative">
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (activeError) { setLocalError(''); dispatch(clearAuthError()); }
+                    }}
                     placeholder="Create a password"
                     className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 pr-10 outline-none focus:border-black font-light tracking-wide transition-colors"
                     required
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -257,7 +296,10 @@ function Register() {
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (activeError) { setLocalError(''); dispatch(clearAuthError()); }
+                    }}
                     placeholder="Confirm your password"
                     className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 pr-10 outline-none focus:border-black font-light tracking-wide transition-colors"
                     required
@@ -293,9 +335,12 @@ function Register() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-black hover:bg-rose-600 disabled:bg-gray-400 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm"
+                  className="w-full bg-black hover:bg-rose-600 disabled:bg-gray-400 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Creating Account...' : 'Create Account'}
+                  {loading && (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  <span>{loading ? 'Creating Account...' : 'Create Account'}</span>
                 </button>
               </div>
 
@@ -313,7 +358,7 @@ function Register() {
               <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={() => console.log('Google login clicked')}
+                  onClick={() => alert("Social Google login is currently in demo mode.")}
                   className="w-full flex items-center justify-center gap-3 border border-gray-200 hover:border-black py-3.5 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all duration-300 hover:bg-gray-50 bg-white"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -327,7 +372,7 @@ function Register() {
 
                 <button
                   type="button"
-                  onClick={() => console.log('Apple login clicked')}
+                  onClick={() => alert("Social Apple login is currently in demo mode.")}
                   className="w-full flex items-center justify-center gap-3 border border-gray-200 hover:border-black py-3.5 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all duration-300 hover:bg-gray-50 bg-white"
                 >
                   <svg className="w-4 h-4 fill-black" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

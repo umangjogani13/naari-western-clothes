@@ -13,9 +13,17 @@ import couponReducer from './slices/couponSlice';
 import customerReducer from './slices/customerSlice';
 import dashboardReducer from './slices/dashboardSlice';
 import userReducer from './slices/userSlice';
+import authReducer from './slices/authSlice';
+import cartReducer from './slices/cartSlice';
+import wishlistReducer from './slices/wishlistSlice';
+import notificationReducer from './slices/notificationSlice';
 
 export const store = configureStore({
   reducer: {
+    auth: authReducer,
+    cart: cartReducer,
+    wishlist: wishlistReducer,
+    notifications: notificationReducer,
     products: productReducer,
     categories: categoryReducer,
     heroSlider: heroSliderReducer,

@@ -60,85 +60,172 @@ const authController = {
     }
   },
 
-  // Login user
+  // Customer / General Login
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
 
-      // Basic input validation
       if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required.' });
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
       }
 
-      // Find user by email
       const user = await User.findOne({ email: email.toLowerCase() });
       if (!user) {
-        return res.status(401).json({ message: 'Invalid email or password.' });
+        return res.status(401).json({ success: false, message: 'Invalid email or password.' });
       }
 
-      // Verify password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid email or password.' });
+        return res.status(401).json({ success: false, message: 'Invalid email or password.' });
       }
 
-      // Generate token
       const token = generateToken(user._id);
-
-      // Respond with token and user details (excluding password)
       const { password: _, ...userWithoutPassword } = user.toObject();
       res.status(200).json({
+        success: true,
         message: 'Login successful',
         token,
         user: userWithoutPassword
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({ message: 'Server error during login.' });
+      res.status(500).json({ success: false, message: 'Server error during login.' });
+    }
+  },
+
+  // Admin Specific Login (Strictly verifies administrative permissions)
+  adminLogin: async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
+      }
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+      }
+
+      const allowedRoles = ['Admin', 'Super Admin', 'Manager', 'Editor'];
+      if (!allowedRoles.includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You do not have administrator permissions.'
+        });
+      }
+
+      if (user.status !== 'Active') {
+        return res.status(403).json({
+          success: false,
+          message: 'Your administrator account has been deactivated. Please contact the administrator.'
+        });
+      }
+
+      const token = generateToken(user._id);
+      const { password: _, ...userWithoutPassword } = user.toObject();
+
+      res.status(200).json({
+        success: true,
+        message: 'Admin login successful',
+        token,
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      console.error('Admin login error:', error);
+      res.status(500).json({ success: false, message: 'Server error during admin login.' });
     }
   },
 
   // Get current user profile (protected route)
-  getProfile: (req, res) => {
-    // req.user is set by authMiddleware
-    res.json(req.user);
+  getProfile: async (req, res) => {
+    try {
+      const user = await User.findById(req.user._id).select('-password').lean();
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+      res.json({
+        ...user,
+        success: true,
+        user
+      });
+    } catch (error) {
+      console.error('Get profile error:', error);
+      res.status(500).json({ success: false, message: 'Error retrieving profile' });
+    }
   },
 
-  // Update current user profile (protected route)
+  // Update current user profile (protected route - for Customer or Admin)
   updateProfile: async (req, res) => {
     try {
-      const { firstName, lastName, phone, dob, gender } = req.body;
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        phone, 
+        avatar, 
+        dob, 
+        gender, 
+        currentPassword, 
+        newPassword 
+      } = req.body;
       const userId = req.user._id;
 
-      // Validate required fields
-      if (!firstName || !lastName || !phone) {
-        return res.status(400).json({ message: 'First name, last name, and phone number are required.' });
+      const userDoc = await User.findById(userId);
+      if (!userDoc) {
+        return res.status(404).json({ success: false, message: 'User not found or update failed.' });
       }
 
-      // Update user details in MongoDB
-      const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        {
-          firstName,
-          lastName,
-          phone,
-          dob: dob || '',
-          gender: gender || ''
-        },
-        { returnDocument: 'after' }
-      ).select('-password').lean();
-
-      if (!updatedUser) {
-        return res.status(404).json({ message: 'User not found or update failed.' });
+      // If email is changing, verify it's not already taken
+      if (email && email.toLowerCase() !== userDoc.email.toLowerCase()) {
+        const emailExists = await User.findOne({ email: email.toLowerCase(), _id: { $ne: userId } });
+        if (emailExists) {
+          return res.status(400).json({ success: false, message: 'This email is already in use by another account.' });
+        }
+        userDoc.email = email.toLowerCase().trim();
       }
+
+      if (firstName) userDoc.firstName = firstName.trim();
+      if (lastName !== undefined) userDoc.lastName = lastName.trim();
+      if (phone) userDoc.phone = phone.trim();
+      if (avatar !== undefined) userDoc.avatar = avatar;
+      if (dob !== undefined) userDoc.dob = dob;
+      if (gender !== undefined) userDoc.gender = gender;
+
+      // Handle password update
+      if (newPassword) {
+        if (!currentPassword) {
+          return res.status(400).json({ success: false, message: 'Current password is required to change password.' });
+        }
+        const isMatch = await bcrypt.compare(currentPassword, userDoc.password);
+        if (!isMatch) {
+          return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+        }
+        if (newPassword.length < 6) {
+          return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+        }
+        const salt = await bcrypt.genSalt(10);
+        userDoc.password = await bcrypt.hash(newPassword, salt);
+      }
+
+      await userDoc.save();
+
+      const { password: _, ...userWithoutPassword } = userDoc.toObject();
 
       res.status(200).json({
+        ...userWithoutPassword,
+        success: true,
         message: 'Profile updated successfully',
-        user: updatedUser
+        user: userWithoutPassword
       });
     } catch (error) {
       console.error('Profile update error:', error);
-      res.status(500).json({ message: 'Server error during profile update.' });
+      res.status(500).json({ success: false, message: 'Server error during profile update.' });
     }
   },
 

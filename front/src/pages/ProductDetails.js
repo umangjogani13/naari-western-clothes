@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import axiosClient from '../api/axiosClient';
+import { addToCart } from '../store/slices/cartSlice';
+import { toggleWishlist } from '../store/slices/wishlistSlice';
 import { 
   FiHeart, 
   FiChevronLeft, 
@@ -23,12 +26,15 @@ function ProductDetails() {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { items: wishlistItems = [] } = useSelector((state) => state.wishlist || {});
+
   // Gallery & Purchase States
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('S');
   const [quantity, setQuantity] = useState(1);
-  const [isFavorited, setIsFavorited] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [addedAlert, setAddedAlert] = useState(false);
 
@@ -147,6 +153,40 @@ function ProductDetails() {
     return [];
   }, [relatedProducts]);
 
+  const isInWishlist = product ? wishlistItems.some(it => (it._id || it.id) === (product._id || product.id)) : false;
+
+  // Stock status checks
+  const isOutOfStock = product ? (product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0)) : false;
+  const isLowStock = !isOutOfStock && product && product.stock !== undefined && product.stock > 0 && product.stock <= 5;
+
+  const handleAddToBag = () => {
+    if (!product || isOutOfStock) return;
+    dispatch(addToCart({
+      product,
+      size: selectedSize,
+      color: selectedColor,
+      quantity
+    }));
+    setAddedAlert(true);
+    setTimeout(() => setAddedAlert(false), 3500);
+  };
+
+  const handleBuyNow = () => {
+    if (!product || isOutOfStock) return;
+    dispatch(addToCart({
+      product,
+      size: selectedSize,
+      color: selectedColor,
+      quantity
+    }));
+    navigate('/checkout');
+  };
+
+  const handleToggleWishlist = () => {
+    if (!product) return;
+    dispatch(toggleWishlist(product));
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 font-sans animate-pulse">
@@ -188,18 +228,6 @@ function ProductDetails() {
       </div>
     );
   }
-
-  // Stock status checks
-  const isOutOfStock = product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0);
-  const isLowStock = !isOutOfStock && product.stock !== undefined && product.stock > 0 && product.stock <= 5;
-
-  const handleAddToBag = () => {
-    if (isOutOfStock) return;
-    setAddedAlert(true);
-    setTimeout(() => {
-      setAddedAlert(false);
-    }, 3000);
-  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 select-none font-sans">
@@ -454,7 +482,19 @@ function ProductDetails() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            {addedAlert && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-sm flex items-center justify-between animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <FiCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Added {quantity} item(s) to your bag!</span>
+                </div>
+                <Link to="/cart" className="underline hover:text-black font-bold uppercase tracking-wider text-[10px]">
+                  View Bag →
+                </Link>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
               <button 
                 onClick={handleAddToBag}
                 disabled={isOutOfStock}
@@ -466,12 +506,26 @@ function ProductDetails() {
               >
                 {isOutOfStock ? 'Out Of Stock' : 'Add To Bag'}
               </button>
+
               <button 
-                onClick={() => setIsFavorited(prev => !prev)}
-                className="w-14 h-14 border border-gray-200 hover:border-black hover:text-rose-600 rounded-sm flex items-center justify-center text-gray-700 transition-all active:scale-[0.95] duration-300 bg-white"
-                aria-label={isFavorited ? "Remove from wishlist" : "Add to wishlist"}
+                onClick={handleBuyNow}
+                disabled={isOutOfStock}
+                className={`flex-1 text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm shadow-md transition-all active:scale-[0.98] duration-300 ${
+                  isOutOfStock
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#B07E5D] hover:bg-[#976849] text-white'
+                }`}
               >
-                {isFavorited ? <FaHeart className="w-5 h-5 text-rose-600" /> : <FiHeart className="w-5 h-5" />}
+                Buy Now
+              </button>
+
+              <button 
+                onClick={handleToggleWishlist}
+                className="w-14 h-14 border border-gray-200 hover:border-black hover:text-rose-600 rounded-sm flex items-center justify-center text-gray-700 transition-all active:scale-[0.95] duration-300 bg-white"
+                aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+              >
+                {isInWishlist ? <FaHeart className="w-5 h-5 text-rose-600" /> : <FiHeart className="w-5 h-5" />}
               </button>
             </div>
           </div>

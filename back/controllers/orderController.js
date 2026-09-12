@@ -1,4 +1,5 @@
 const Order = require('../models/orderModel');
+const Notification = require('../models/notificationModel');
 
 const orderController = {
   // GET /api/orders (List orders with search and status filters)
@@ -154,6 +155,29 @@ const orderController = {
       });
 
       const saved = await newOrder.save();
+
+      // Trigger automatic admin notification
+      try {
+        await Notification.create({
+          title: `New Order Placed (${orderNumber})`,
+          message: `Received new order ${orderNumber} from ${name} for ₹${calculatedTotal.toLocaleString('en-IN')}.`,
+          type: 'order',
+          priority: 'high',
+          isRead: false,
+          link: '/admin/orders',
+          metadata: {
+            orderNumber,
+            customerName: name,
+            email,
+            phone,
+            total: calculatedTotal,
+            itemsCount: orderItems.length
+          }
+        });
+      } catch (notifErr) {
+        console.error('[Order Notification Error]:', notifErr.message);
+      }
+
       res.status(201).json({
         success: true,
         message: 'Order created successfully',

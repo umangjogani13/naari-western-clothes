@@ -151,7 +151,7 @@ const couponController = {
   // POST /api/coupons/validate
   validateCoupon: async (req, res) => {
     try {
-      const { code, cartTotal } = req.body;
+      const { code, cartTotal, subtotal } = req.body;
       if (!code) {
         return res.status(400).json({ success: false, message: 'Coupon code is required' });
       }
@@ -161,7 +161,7 @@ const couponController = {
         return res.status(404).json({ success: false, message: 'Invalid or expired coupon code' });
       }
 
-      const total = Number(cartTotal) || 0;
+      const total = Number(cartTotal !== undefined ? cartTotal : subtotal) || 0;
       if (coupon.minOrder && total < coupon.minOrder) {
         return res.status(400).json({
           success: false,
@@ -180,10 +180,12 @@ const couponController = {
 
       res.json({
         success: true,
+        discount: discountAmount,
         coupon: {
           code: coupon.code,
           type: coupon.type,
           discountVal: coupon.discountVal,
+          discountValue: discountAmount,
           discountAmount
         },
         message: `Coupon "${coupon.code}" applied successfully! You saved ₹${discountAmount}.`

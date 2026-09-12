@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { logoutUser } from '../store/slices/authSlice';
 import { 
   FiSearch, 
   FiHeart, 
@@ -8,7 +10,10 @@ import {
   FiMenu, 
   FiX, 
   FiChevronLeft, 
-  FiChevronRight 
+  FiChevronRight,
+  FiLogOut,
+  FiShield,
+  FiChevronDown
 } from 'react-icons/fi';
 
 const ANNOUNCEMENTS = [
@@ -24,6 +29,29 @@ function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+
+  const accountDropdownRef = useRef(null);
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useSelector((state) => state.auth || {});
+  const { items: cartItems = [] } = useSelector((state) => state.cart || {});
+  const { items: wishlistItems = [] } = useSelector((state) => state.wishlist || {});
+
+  const totalCartCount = cartItems.reduce((acc, it) => acc + (Number(it.quantity) || 1), 0);
+  const totalWishlistCount = wishlistItems.length;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Auto-scroll announcements every 5 seconds
   useEffect(() => {
@@ -33,7 +61,6 @@ function Header() {
     return () => clearInterval(timer);
   }, []);
 
-  // Handle manual announcement change
   const prevAnnouncement = () => {
     setAnnouncementIndex((prevIndex) => 
       prevIndex === 0 ? ANNOUNCEMENTS.length - 1 : prevIndex - 1
@@ -65,6 +92,12 @@ function Header() {
       document.body.style.overflow = 'unset';
     }
   }, [isMobileMenuOpen]);
+
+  const handleLogout = () => {
+    dispatch(logoutUser());
+    setIsAccountDropdownOpen(false);
+    navigate('/');
+  };
 
   const navLinks = [
     { name: 'New In', href: '/shop', isSale: false },
@@ -167,7 +200,7 @@ function Header() {
             {/* Search Toggle */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105 focus:outline-none"
+              className="text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105 focus:outline-none cursor-pointer"
               aria-label="Search"
             >
               {isSearchOpen ? <FiX className="w-5 h-5 sm:w-6 sm:h-6" /> : <FiSearch className="w-5 h-5 sm:w-6 sm:h-6" />}
@@ -176,20 +209,125 @@ function Header() {
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="hidden sm:inline-block text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105"
+              className="hidden sm:inline-block text-gray-900 hover:text-rose-600 transition-all duration-300 relative hover:scale-105"
               aria-label="Wishlist"
             >
               <FiHeart className="w-5 h-5 sm:w-6 sm:h-6" />
+              {totalWishlistCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-white">
+                  {totalWishlistCount}
+                </span>
+              )}
             </Link>
 
-            {/* Account */}
-            <Link
-              to="/login"
-              className="hidden sm:inline-block text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105"
-              aria-label="Account"
-            >
-              <FiUser className="w-5 h-5 sm:w-6 sm:h-6" />
-            </Link>
+            {/* Account / Auth Dropdown */}
+            <div className="relative hidden sm:inline-block" ref={accountDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                className="flex items-center gap-1.5 text-gray-900 hover:text-rose-600 transition-all duration-300 hover:scale-105 cursor-pointer focus:outline-none"
+                aria-label="Account Menu"
+              >
+                {isAuthenticated && user?.firstName ? (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-7 h-7 rounded-full bg-[#FAF0E6] border border-[#EAE3DC] text-[#B07E5D] font-bold text-xs flex items-center justify-center">
+                      {user.firstName.charAt(0).toUpperCase()}
+                    </div>
+                    <FiChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isAccountDropdownOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                ) : (
+                  <FiUser className="w-5 h-5 sm:w-6 sm:h-6" />
+                )}
+              </button>
+
+              {/* Account Dropdown Menu */}
+              {isAccountDropdownOpen && (
+                <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 shadow-xl rounded-sm py-2 z-50 animate-fade-in text-left">
+                  {isAuthenticated && user ? (
+                    <>
+                      {/* User Info Header */}
+                      <div className="px-4 py-2.5 border-b border-gray-100">
+                        <p className="text-xs font-semibold text-gray-950 truncate">
+                          {user.firstName} {user.lastName || ''}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-light truncate">
+                          {user.email}
+                        </p>
+                        {user.role === 'Admin' && (
+                          <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-xs">
+                            Administrator
+                          </span>
+                        )}
+                      </div>
+
+                      <Link
+                        to="/account"
+                        onClick={() => setIsAccountDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors"
+                      >
+                        <FiUser className="w-3.5 h-3.5 text-gray-500" />
+                        <span>My Account</span>
+                      </Link>
+
+                      <Link
+                        to="/account?tab=orders"
+                        onClick={() => setIsAccountDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors"
+                      >
+                        <FiShoppingBag className="w-3.5 h-3.5 text-gray-500" />
+                        <span>My Orders</span>
+                      </Link>
+
+                      {user.role === 'Admin' && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setIsAccountDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-amber-800 bg-amber-50/50 hover:bg-amber-100/60 font-semibold transition-colors"
+                        >
+                          <FiShield className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Admin Panel</span>
+                        </Link>
+                      )}
+
+                      <div className="border-t border-gray-100 my-1"></div>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 font-semibold transition-colors cursor-pointer text-left"
+                      >
+                        <FiLogOut className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Logout</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-xs font-semibold text-gray-950">Welcome to Lavéra</p>
+                        <p className="text-[10px] text-gray-400 font-light">Sign in to manage your orders</p>
+                      </div>
+
+                      <div className="p-3 space-y-2">
+                        <Link
+                          to="/login"
+                          onClick={() => setIsAccountDropdownOpen(false)}
+                          className="block w-full py-2 bg-black text-white text-center text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-rose-600 transition-colors"
+                        >
+                          Login
+                        </Link>
+                        <Link
+                          to="/register"
+                          onClick={() => setIsAccountDropdownOpen(false)}
+                          className="block w-full py-2 border border-gray-200 text-gray-800 text-center text-[10px] font-bold uppercase tracking-widest rounded-sm hover:border-black transition-colors"
+                        >
+                          Sign Up
+                        </Link>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Cart / Shopping Bag */}
             <Link
@@ -198,10 +336,11 @@ function Header() {
               aria-label="Shopping Cart"
             >
               <FiShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
-              {/* Badge representing items count (matches image design) */}
-              <span className="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-white">
-                3
-              </span>
+              {totalCartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-white">
+                  {totalCartCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>
@@ -231,7 +370,7 @@ function Header() {
         </div>
       </nav>
 
-      {/* Mobile Drawer (Menu Overlay & Menu Container) */}
+      {/* Mobile Drawer */}
       <div 
         className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
           isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -242,7 +381,7 @@ function Header() {
           className={`fixed inset-y-0 left-0 w-[80%] max-w-sm bg-white shadow-2xl flex flex-col justify-between p-6 transition-transform duration-300 ease-out lg:hidden ${
             isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
-          onClick={(e) => e.stopPropagation()} // Prevent closing drawer when clicking inside
+          onClick={(e) => e.stopPropagation()}
         >
           <div>
             {/* Header in Drawer */}
@@ -278,27 +417,70 @@ function Header() {
             </div>
           </div>
 
-          {/* Footer in Drawer (Mobile Account/Settings links) */}
+          {/* Footer in Drawer (Mobile Account/Auth) */}
           <div className="border-t border-gray-100 pt-6">
-            <div className="flex items-center justify-around text-gray-800">
-              <Link 
-                to="/login" 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
-              >
-                <FiUser className="w-5 h-5" />
-                <span className="text-[10px] tracking-widest font-semibold uppercase">Account</span>
-              </Link>
-              <div className="h-6 w-[1px] bg-gray-200" />
-              <Link 
-                to="/wishlist" 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
-              >
-                <FiHeart className="w-5 h-5" />
-                <span className="text-[10px] tracking-widest font-semibold uppercase">Wishlist</span>
-              </Link>
-            </div>
+            {isAuthenticated && user ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#FAF0E6] text-[#B07E5D] font-bold text-sm flex items-center justify-center border border-[#EAE3DC]">
+                    {user.firstName?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-semibold text-gray-900">Hi, {user.firstName}</p>
+                    <p className="text-[10px] text-gray-400">{user.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <Link 
+                    to="/account" 
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex-1 py-2 text-center bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-rose-600 transition-colors"
+                  >
+                    My Account
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="px-3 py-2 border border-rose-200 text-rose-600 text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-rose-50 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-around text-gray-800">
+                <Link 
+                  to="/login" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
+                >
+                  <FiUser className="w-5 h-5" />
+                  <span className="text-[10px] tracking-widest font-semibold uppercase">Login</span>
+                </Link>
+                <div className="h-6 w-[1px] bg-gray-200" />
+                <Link 
+                  to="/register" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
+                >
+                  <FiUser className="w-5 h-5" />
+                  <span className="text-[10px] tracking-widest font-semibold uppercase">Register</span>
+                </Link>
+                <div className="h-6 w-[1px] bg-gray-200" />
+                <Link 
+                  to="/wishlist" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex flex-col items-center gap-1.5 hover:text-rose-600 transition-colors duration-200"
+                >
+                  <FiHeart className="w-5 h-5" />
+                  <span className="text-[10px] tracking-widest font-semibold uppercase">Wishlist</span>
+                </Link>
+              </div>
+            )}
             <div className="mt-6 text-center">
               <p className="text-[9px] text-gray-400 tracking-widest uppercase">
                 © 2026 LAVÉRA WESTERNWEAR

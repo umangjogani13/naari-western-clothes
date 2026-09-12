@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../store/slices/productSlice';
 import { fetchCategoryBySlug } from '../store/slices/categorySlice';
+import { toggleWishlist } from '../store/slices/wishlistSlice';
 import { 
   FiHeart, 
   FiChevronLeft, 
@@ -33,6 +34,7 @@ function CategoryPage() {
   // Redux Products & Categories State
   const { items: products = [] } = useSelector((state) => state.products || {});
   const { currentCategory } = useSelector((state) => state.categories || {});
+  const { items: wishlistItems = [] } = useSelector((state) => state.wishlist || {});
 
   // Fetch dynamic category metadata and products from Redux
   useEffect(() => {
@@ -89,8 +91,11 @@ function CategoryPage() {
   // UI States
   const [sortBy, setSortBy] = useState('Best Selling');
   const [currentPage, setCurrentPage] = useState(1);
-  const [favorites, setFavorites] = useState({});
   const [productSelectedColor, setProductSelectedColor] = useState({});
+
+  const toggleFavorite = (product) => {
+    dispatch(toggleWishlist(product));
+  };
 
   // Accordion drawer collapsibles
   const [collapseState, setCollapseState] = useState({
@@ -182,13 +187,6 @@ function CategoryPage() {
   }, [filteredProducts, currentPage]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
-
-  const toggleFavorite = (productId) => {
-    setFavorites(prev => ({
-      ...prev,
-      [productId]: !prev[productId]
-    }));
-  };
 
   const handleProductColorSelect = (productId, colorName) => {
     setProductSelectedColor(prev => ({
@@ -514,7 +512,7 @@ function CategoryPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10 mb-16">
         {paginatedProducts.map(product => {
           const productId = product._id || product.id;
-          const isFav = !!favorites[productId];
+          const isFav = wishlistItems.some(it => (it._id || it.id) === productId);
           const isOutOfStock = product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0);
 
           // Normalize colors
@@ -564,7 +562,7 @@ function CategoryPage() {
 
                 {/* Overlaid Wishlist button */}
                 <button 
-                  onClick={() => toggleFavorite(productId)}
+                  onClick={() => toggleFavorite(product)}
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-600 shadow-sm border border-gray-100 hover:text-rose-600 hover:scale-110 transition-all duration-300"
                   aria-label={isFav ? "Remove from wishlist" : "Add to wishlist"}
                 >

@@ -1,5 +1,7 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { logoutUser } from '../store/slices/authSlice';
 import { 
   FiClipboard, 
   FiPackage, 
@@ -19,11 +21,22 @@ import {
   FiSettings, 
   FiLogOut,
   FiX,
-  FiInstagram
+  FiInstagram,
+  FiBell
 } from 'react-icons/fi';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { unreadCount = 0 } = useSelector((state) => state.notifications || {});
+
+  const handleLogout = (e) => {
+    e.preventDefault();
+    setIsOpen(false);
+    dispatch(logoutUser());
+    navigate('/admin/login');
+  };
 
   const getActiveTab = () => {
     const path = location.pathname;
@@ -38,6 +51,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: FiHome, path: '/admin/dashboard' },
+    { id: 'notifications', label: 'Notifications', icon: FiBell, path: '/admin/notifications', badge: unreadCount },
     { id: 'orders', label: 'Orders', icon: FiClipboard, path: '/admin/orders' },
     { id: 'products', label: 'Products', icon: FiPackage, path: '/admin/products' },
     { id: 'customers', label: 'Customers', icon: FiUser, path: '/admin/customers' },
@@ -55,6 +69,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { id: 'analytics', label: 'Analytics', icon: FiTrendingUp, path: '/admin/analytics' },
     { id: 'settings', label: 'Settings', icon: FiSettings, path: '/admin/settings' },
     { id: 'users', label: 'Users', icon: FiUser, path: '/admin/users' },
+    { id: 'profile', label: 'Admin Profile', icon: FiUser, path: '/admin/profile' },
   ];
 
   return (
@@ -98,14 +113,21 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 key={item.id}
                 to={item.path}
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] transition-all duration-200 ${
+                className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-[13px] transition-all duration-200 ${
                   isActive 
                     ? 'bg-[#F4E9E2] text-[#8C6239] font-semibold shadow-sm' 
                     : 'text-gray-500 hover:bg-[#FDFBF9] hover:text-[#8C6239]'
                 }`}
               >
-                <Icon size={16} className={isActive ? 'text-[#8C6239]' : 'text-gray-400 group-hover:text-[#8C6239]'} />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-2.5">
+                  <Icon size={16} className={isActive ? 'text-[#8C6239]' : 'text-gray-400 group-hover:text-[#8C6239]'} />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && item.badge > 0 ? (
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-[#C18F6B] text-white leading-none shadow-xs">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -113,14 +135,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
         {/* Support & Logout Section */}
         <div className="p-3 border-t border-[#EAE3DC] space-y-3">
-          <Link
-            to="/admin/logout"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] text-gray-500 hover:bg-rose-50/50 hover:text-rose-500 transition-colors"
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] text-gray-500 hover:bg-rose-50/50 hover:text-rose-500 transition-colors cursor-pointer"
           >
             <FiLogOut size={16} className="text-gray-400 group-hover:text-rose-500" />
             <span>Logout</span>
-          </Link>
+          </button>
         </div>
       </aside>
     </>

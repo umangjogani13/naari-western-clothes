@@ -20,6 +20,7 @@ const orderController = require('../controllers/orderController');
 const couponController = require('../controllers/couponController');
 const customerController = require('../controllers/customerController');
 const dashboardController = require('../controllers/dashboardController');
+const notificationController = require('../controllers/notificationController');
 
 // ==========================================
 // 1. HEALTH CHECK
@@ -34,6 +35,7 @@ router.get('/health', (req, res) => {
 // Public
 router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
+router.post('/auth/admin-login', authController.adminLogin);
 
 // Protected (Customer / Admin Profile)
 router.get('/auth/profile', authMiddleware, authController.getProfile);
@@ -223,5 +225,17 @@ router.delete('/customers/:id', customerController.deleteCustomer);
 // ==========================================
 router.get('/dashboard', dashboardController.getStats);
 router.get('/dashboard/stats', dashboardController.getStats);
+
+// ==========================================
+// 17. NOTIFICATION ROUTES
+// ==========================================
+router.get('/notifications', notificationController.getNotifications);
+router.get('/notifications/unread-count', notificationController.getUnreadCount);
+router.post('/notifications', notificationController.createNotification);
+router.patch('/notifications/mark-all-read', notificationController.markAllAsRead);
+router.patch('/notifications/:id/read', notificationController.markAsRead);
+router.patch('/notifications/:id/toggle', notificationController.toggleReadStatus);
+router.delete('/notifications/:id', notificationController.deleteNotification);
+router.delete('/notifications', notificationController.clearAllNotifications);
 
 module.exports = router;

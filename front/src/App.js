@@ -39,6 +39,12 @@ import AdminReports from './admin/Reports';
 import AdminAnalytics from './admin/Analytics';
 import AdminSettings from './admin/Settings';
 import AdminUsers from './admin/Users';
+import AdminLogin from './admin/AdminLogin';
+import AdminProfile from './admin/AdminProfile';
+import AdminNotifications from './admin/Notifications';
+import AdminProtectedRoute from './admin/AdminProtectedRoute';
+
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -53,7 +59,14 @@ function App() {
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/account" element={<Account />} />
+        <Route 
+          path="/account" 
+          element={
+            <ProtectedRoute>
+              <Account />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -65,8 +78,17 @@ function App() {
         <Route path="/order-confirmed" element={<OrderConfirmed />} />
       </Route>
 
-      {/* Admin Panel Layout & Routes */}
-      <Route element={<AdminLayout />}>
+      {/* Admin Login Route (Publicly accessible) */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+
+      {/* Admin Panel Layout & Protected Routes */}
+      <Route 
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout />
+          </AdminProtectedRoute>
+        }
+      >
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
@@ -86,6 +108,8 @@ function App() {
         <Route path="/admin/analytics" element={<AdminAnalytics />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
+        <Route path="/admin/notifications" element={<AdminNotifications />} />
       </Route>
     </Routes>
   );

@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { toggleWishlist } from '../../store/slices/wishlistSlice';
 import { FiChevronLeft, FiChevronRight, FiHeart, FiHeart as FiHeartOutline } from 'react-icons/fi';
 import { FaStar } from 'react-icons/fa';
 
 function NewArrivals({ products = [], loading = false }) {
-  const [favorites, setFavorites] = useState({});
+  const dispatch = useDispatch();
+  const { items: wishlistItems = [] } = useSelector((state) => state.wishlist || {});
   const [selectedColors, setSelectedColors] = useState({});
   const newArrivalsRef = useRef(null);
 
@@ -13,11 +16,8 @@ function NewArrivals({ products = [], loading = false }) {
     return null;
   }
 
-  const toggleFavorite = (productId) => {
-    setFavorites(prev => ({
-      ...prev,
-      [productId]: !prev[productId]
-    }));
+  const toggleFavorite = (product) => {
+    dispatch(toggleWishlist(product));
   };
 
   const handleColorSelect = (productId, color) => {
@@ -92,12 +92,13 @@ function NewArrivals({ products = [], loading = false }) {
               className="flex gap-5 sm:gap-6 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-4"
             >
               {products.map((product) => {
-                const isFavorite = !!favorites[product.id || product._id];
-                const activeColor = selectedColors[product.id || product._id] || (product.colors && product.colors[0]);
+                const productId = product.id || product._id;
+                const isFavorite = wishlistItems.some(it => (it._id || it.id) === productId);
+                const activeColor = selectedColors[productId] || (product.colors && product.colors[0]);
 
                 return (
                   <div 
-                    key={product.id || product._id} 
+                    key={productId} 
                     className="min-w-[160px] w-[200px] sm:w-[220px] snap-start group flex flex-col relative bg-white transition-all duration-300"
                   >
                     {/* Image Wrapper */}
@@ -106,14 +107,14 @@ function NewArrivals({ products = [], loading = false }) {
                         <img 
                           src={product.image} 
                           alt={product.name} 
-                          className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                          className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" 
                           loading="lazy"
                         />
                       </Link>
                       
                       {/* Wishlist Button */}
                       <button 
-                        onClick={() => toggleFavorite(product.id || product._id)}
+                        onClick={() => toggleFavorite(product)}
                         className="absolute top-2.5 right-2.5 w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all z-10 cursor-pointer"
                         aria-label="Add to Wishlist"
                       >

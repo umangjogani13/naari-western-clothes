@@ -1,40 +1,45 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiEye, FiEyeOff, FiTag, FiRotateCcw, FiHeadphones } from 'react-icons/fi';
-import axiosClient from '../api/axiosClient';
-
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { FiEye, FiEyeOff, FiTag, FiRotateCcw, FiHeadphones, FiAlertCircle } from 'react-icons/fi';
+import { loginUser, clearAuthError } from '../store/slices/authSlice';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [loading, setLoading] = useState(false);
-  
+
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const { isAuthenticated, loading, error: authError } = useSelector((state) => state.auth || {});
+
+  // Destination after successful login
+  const from = location.state?.from?.pathname || '/account';
+
+  // If already authenticated, redirect to destination
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
+
+  // Clear error on unmount or input change
+  useEffect(() => {
+    return () => {
+      dispatch(clearAuthError());
+    };
+  }, [dispatch]);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsg('');
-    
-    try {
-      setLoading(true);
-      const response = await axiosClient.post('/auth/login', {
-        email,
-        password,
-      });
+    dispatch(clearAuthError());
 
-      // Store JWT token and user info
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-
-      navigate('/account');
-    } catch (err) {
-      console.error('Login error:', err);
-      setErrorMsg(err.response?.data?.message || 'Invalid email or password. Please try again.');
-    } finally {
-      setLoading(false);
+    const resultAction = await dispatch(loginUser({ email: email.trim(), password }));
+    if (loginUser.fulfilled.match(resultAction)) {
+      navigate(from, { replace: true });
     }
   };
 
@@ -52,7 +57,7 @@ function Login() {
       <div className="max-w-5xl mx-auto bg-white border border-gray-100 rounded-sm overflow-hidden shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-12">
           
-          {/* Left Column: Visual panel (5 columns on large screen, hidden or stacked depending on size) */}
+          {/* Left Column: Visual panel */}
           <div className="lg:col-span-5 bg-[#FAF6F0] p-8 sm:p-12 flex flex-col justify-between min-h-[550px] lg:min-h-[650px]">
             
             {/* Header Text block */}
@@ -99,7 +104,7 @@ function Login() {
 
           </div>
 
-          {/* Right Column: Login Form panel (7 columns on large screen) */}
+          {/* Right Column: Login Form panel */}
           <div className="lg:col-span-7 bg-white p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
             
             {/* Header Title */}
@@ -112,9 +117,10 @@ function Login() {
               </p>
             </div>
 
-            {errorMsg && (
-              <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-800 text-xs font-light px-4 py-3 rounded-sm">
-                {errorMsg}
+            {authError && (
+              <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium px-4 py-3 rounded-lg flex items-center gap-2">
+                <FiAlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                <span>{authError}</span>
               </div>
             )}
 
@@ -129,7 +135,10 @@ function Login() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (authError) dispatch(clearAuthError());
+                  }}
                   placeholder="Enter your email address"
                   className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 outline-none focus:border-black font-light tracking-wide transition-colors"
                   required
@@ -146,7 +155,10 @@ function Login() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (authError) dispatch(clearAuthError());
+                    }}
                     placeholder="Enter your password"
                     className="w-full bg-white border border-gray-200 rounded-sm py-3.5 px-4 pr-10 outline-none focus:border-black font-light tracking-wide transition-colors"
                     required
@@ -174,9 +186,13 @@ function Login() {
                   />
                   <span>Remember me</span>
                 </label>
-                <a href="#forgot" className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-black underline transition-colors">
+                <button
+                  type="button"
+                  onClick={() => alert("Password reset link will be sent to your registered email.")}
+                  className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-black underline transition-colors"
+                >
                   Forgot Password?
-                </a>
+                </button>
               </div>
 
               {/* Submit Button */}
@@ -184,9 +200,12 @@ function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-black hover:bg-rose-600 disabled:bg-gray-400 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm"
+                  className="w-full bg-black hover:bg-rose-600 disabled:bg-gray-400 text-white text-xs font-bold tracking-[0.2em] uppercase py-4 rounded-sm transition-all active:scale-[0.99] duration-300 shadow-sm flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Logging in...' : 'Login'}
+                  {loading && (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  <span>{loading ? 'Logging in...' : 'Login'}</span>
                 </button>
               </div>
 
@@ -204,7 +223,7 @@ function Login() {
               <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={() => console.log('Google login clicked')}
+                  onClick={() => alert("Social Google login is currently in demo mode.")}
                   className="w-full flex items-center justify-center gap-3 border border-gray-200 hover:border-black py-3.5 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all duration-300 hover:bg-gray-50 bg-white"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -218,7 +237,7 @@ function Login() {
 
                 <button
                   type="button"
-                  onClick={() => console.log('Apple login clicked')}
+                  onClick={() => alert("Social Apple login is currently in demo mode.")}
                   className="w-full flex items-center justify-center gap-3 border border-gray-200 hover:border-black py-3.5 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all duration-300 hover:bg-gray-50 bg-white"
                 >
                   <svg className="w-4 h-4 fill-black" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
