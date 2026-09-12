@@ -16,309 +16,12 @@ import {
 } from 'react-icons/fi';
 import { FaStar, FaHeart } from 'react-icons/fa';
 
-// Product database matching both Shop page and details page
-const MOCK_PRODUCTS = [
-  {
-    id: 1,
-    name: "Oversized Cotton Shirt",
-    category: "Tops",
-    price: 1499,
-    oldPrice: 1665,
-    image: "/images/prod_shirt.jpg",
-    rating: 5.0,
-    reviewsCount: 86,
-    colors: [
-      { name: "Tan", value: "#C6A482" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    fabric: "Cotton",
-    discount: 10,
-    images: ["/images/prod_shirt.jpg", "/images/cat_tops.jpg", "/images/promo_weekend.jpg", "/images/newsletter_model.jpg"],
-    description: "An everyday wardrobe staple. This oversized shirt is crafted from 100% breathable organic cotton, featuring a relaxed dropped-shoulder silhouette, a classic pointed collar, a chest patch pocket, and a curved hem. Wear it open over a crop top or tucked into denim.",
-    details: "Relaxed oversized fit. Dropped shoulders. Button front closure. Button cuffs.",
-    sizeFit: "Designed for a loose, oversized fit. Model is 5'8\" and is wearing a size S.",
-    materialCare: "100% Organic Cotton. Machine wash warm. Tumble dry medium. Warm iron if needed.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 2,
-    name: "Satin Midi Dress",
-    category: "Dresses",
-    price: 2299,
-    oldPrice: 3299,
-    image: "/images/prod_dress.jpg",
-    rating: 5.0,
-    reviewsCount: 124,
-    colors: [
-      { name: "Mauve", value: "#A57B85" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Olive", value: "#1E3F20" }
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    fabric: "Satin",
-    discount: 30,
-    images: ["/images/prod_dress.jpg", "/images/cat_dresses.jpg", "/images/insta_1.jpg", "/images/cat_skirts.jpg"],
-    description: "Slip into pure luxury. The Satin Midi Dress is crafted from a fluid, lightweight premium satin fabric that drapes like liquid. It features a delicate cowl neckline, adjustable crossover spaghetti straps, and a clean bias-cut silhouette that skims your body for a flattering finish.",
-    details: "Liquid-like drape satin. Adjustable cross-back straps. V-neck front. Midi length with subtle side slit.",
-    sizeFit: "Bias cut drape, skims body without cling. Model is 5'9\" and is wearing a size S.",
-    materialCare: "100% Satin Polyester. Dry clean recommended. Delicate hand wash cold. Cool iron on reverse side using a pressing cloth.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 3,
-    name: "Ruched Crop Top",
-    category: "Tops",
-    price: 899,
-    oldPrice: 1123,
-    image: "/images/prod_top.jpg",
-    rating: 4.7,
-    reviewsCount: 38,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" },
-      { name: "Dusty Blue", value: "#8FB8DE" }
-    ],
-    sizes: ["XS", "S", "M"],
-    fabric: "Knit",
-    discount: 20,
-    images: ["/images/prod_top.jpg", "/images/cat_tops.jpg", "/images/promo_look.jpg", "/images/newsletter_model.jpg"],
-    description: "Cute, sweet, and versatile. The Ruched Crop Top is knitted from super-soft ribbed rayon-blend yarn. It is detailed with an adjustable drawstring ruching along the front, a scoop neckline, and comfortable short puff sleeves.",
-    details: "Sweetheart neckline. Adjustable front tie-strings. Elasticated sleeves. Cropped hemline.",
-    sizeFit: "Fitted stretch. Fits true to size. Model is 5'7\" and wears size S.",
-    materialCare: "95% Rayon, 5% Spandex. Hand wash cold. Lay flat to dry. Do not wring or twist.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 4,
-    name: "Wide Leg Jeans",
-    category: "Bottoms",
-    price: 1999,
-    oldPrice: 2499,
-    image: "/images/prod_jeans.jpg",
-    rating: 4.9,
-    reviewsCount: 57,
-    colors: [
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["M", "L", "XL", "XXL"],
-    fabric: "Denim",
-    discount: 20,
-    images: ["/images/prod_jeans.jpg", "/images/cat_jeans.jpg", "/images/insta_2.jpg", "/images/promo_look.jpg"],
-    description: "The ultimate casual cool. Our Wide Leg Jeans are crafted from premium heavy denim, designed to sit high on the waist and fall into a relaxed, exaggerated wide leg. Features a classic five-pocket construction.",
-    details: "High rise fit. Exaggerated wide leg. Zipper fly with button closure. 5-pocket denim styling.",
-    sizeFit: "Fits snug around the waist, loose through the leg. Model is 5'9\" and wears size M.",
-    materialCare: "100% Cotton Denim. Machine wash cold inside out with similar colors. Line dry.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 5,
-    name: "Blazer Co-ord Set",
-    category: "Co-ords",
-    price: 2799,
-    oldPrice: 3999,
-    image: "/images/prod_blazer.jpg",
-    rating: 5.0,
-    reviewsCount: 61,
-    colors: [
-      { name: "Camel", value: "#C6A482" },
-      { name: "Black", value: "#5C3D2E" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Linen",
-    discount: 30,
-    images: ["/images/prod_blazer.jpg", "/images/cat_coords.jpg", "/images/promo_look.jpg", "/images/insta_5.jpg"],
-    description: "Tailored to perfection. This linen-blend Blazer Co-ord Set includes a relaxed single-breasted blazer and matching high-waisted tailored trousers. Designed to easily transition from brunch to corporate tables.",
-    details: "2-piece matching set. Single-breasted, notch lapel blazer. Hook and zip trouser fly. Linen-cotton blend.",
-    sizeFit: "Relaxed tailored fit. Model is 5'8\" and is wearing size S.",
-    materialCare: "55% Linen, 45% Cotton. Hand wash cold or dry clean. Low steam iron.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 6,
-    name: "Cut-Out Maxi Dress",
-    category: "Dresses",
-    price: 2409,
-    oldPrice: 2676,
-    image: "/images/prod_maxi.jpg",
-    rating: 4.6,
-    reviewsCount: 29,
-    colors: [
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Satin",
-    discount: 10,
-    images: ["/images/prod_maxi.jpg", "/images/cat_dresses.jpg", "/images/promo_look.jpg", "/images/newsletter_model.jpg"],
-    description: "A summer vacation standout. This halter-neck maxi dress is made from lightweight satin polyester, featuring daring side waist cut-outs that wrap to an open back, with a flowing tiered A-line skirt.",
-    details: "Halter neckline with back ties. Waist cut-outs. Open back. Flared maxi tiered skirt.",
-    sizeFit: "Adjustable halter neck. Fit runs true to size. Model is 5'9\" and wears size S.",
-    materialCare: "100% Polyester Satin. Dry clean or hand wash delicate cold. Hang dry.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 7,
-    name: "Linen Shirt",
-    category: "Tops",
-    price: 1199,
-    oldPrice: 1199,
-    image: "/images/promo_weekend.jpg",
-    rating: 4.5,
-    reviewsCount: 22,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    fabric: "Linen",
-    discount: 0,
-    images: ["/images/promo_weekend.jpg", "/images/cat_tops.jpg", "/images/prod_shirt.jpg", "/images/newsletter_model.jpg"],
-    description: "Cool, classic, and breezy. Crafted from structured pure organic linen, this button-down shirt is washed for softness. Features a chest pocket and long sleeves you can easily cuff up.",
-    details: "100% French linen. Button front. Cuff details. Single pocket.",
-    sizeFit: "Regular straight fit. Model is 5'8\" and wears size M.",
-    materialCare: "100% Linen. Machine wash cold with similar colors. Line dry inside out.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 8,
-    name: "Basic Rib Top",
-    category: "Tops",
-    price: 599,
-    oldPrice: 665,
-    image: "/images/promo_look.jpg",
-    rating: 4.8,
-    reviewsCount: 15,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Knit",
-    discount: 10,
-    images: ["/images/promo_look.jpg", "/images/newsletter_model.jpg", "/images/prod_top.jpg"],
-    description: "The ultimate layering block. This rib-knit tank top is made from soft, ribbed stretch-knit cotton. Features a deep scoop neckline and supportive wide straps.",
-    details: "Wide scoop neck. Ribbed stretch knit. Bound neck and armholes.",
-    sizeFit: "Tight body-hugging stretch fit. Model wears size S.",
-    materialCare: "95% Cotton, 5% Spandex. Machine wash cold. Flat dry. Low iron.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 9,
-    name: "Cargo Pants",
-    category: "Bottoms",
-    price: 1899,
-    oldPrice: 2532,
-    image: "/images/cat_jeans.jpg",
-    rating: 4.7,
-    reviewsCount: 31,
-    colors: [
-      { name: "Forest Green", value: "#1E3F20" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Camel", value: "#C6A482" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Cotton",
-    discount: 25,
-    images: ["/images/cat_jeans.jpg", "/images/insta_4.jpg", "/images/prod_jeans.jpg"],
-    description: "Function meets street style. Our utility Cargo Pants feature an extra high-waist band, multiple side and cargo leg pockets, adjustable cuff ties, and a sturdy cotton twill fabric.",
-    details: "Utility cargo styling. Cargo side-pockets. Drawstring bottom cuffs. Heavy cotton twill.",
-    sizeFit: "High-waist, utility relaxed leg. Model wears size S.",
-    materialCare: "100% Cotton Twill. Machine wash warm. Wash with like colors.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 10,
-    name: "Slip Maxi Dress",
-    category: "Dresses",
-    price: 1799,
-    oldPrice: 2999,
-    image: "/images/cat_skirts.jpg",
-    rating: 4.8,
-    reviewsCount: 44,
-    colors: [
-      { name: "Black", value: "#000000" },
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["S", "M", "L"],
-    fabric: "Satin",
-    discount: 40,
-    images: ["/images/cat_skirts.jpg", "/images/insta_1.jpg", "/images/prod_dress.jpg"],
-    description: "The dress that works for everything. An elegant bias-cut slip maxi dress with thin adjustable straps, a clean straight neckline, and a fluid ankle-length hem.",
-    details: "Adjustable straps. Bias cut fluid drape. Straight neckline. Fully lined bust.",
-    sizeFit: "Gently drapes body without cling. Model wears size S.",
-    materialCare: "100% Polyester Satin. Dry clean or cold hand wash. Iron low setting.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 11,
-    name: "Denim Jacket",
-    category: "Jackets",
-    price: 1899,
-    oldPrice: 1899,
-    image: "/images/insta_2.jpg",
-    rating: 4.9,
-    reviewsCount: 52,
-    colors: [
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Denim",
-    discount: 0,
-    images: ["/images/insta_2.jpg", "/images/insta_6.jpg", "/images/prod_jeans.jpg"],
-    description: "A lifetime layering piece. Our Denim Jacket is crafted from sturdy rigid cotton denim that softens over time. Cut with classic trucker details and utility waist-side tabs.",
-    details: "Classic trucker construction. Rigid denim. Chest flap pockets. Adjustable waist-tabs.",
-    sizeFit: "Straight boxy fit. Model is 5'8\" and wears size S.",
-    materialCare: "100% Cotton. Wash cold inside out. Color may transfer when wet.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  },
-  {
-    id: 12,
-    name: "Pleated Skirt",
-    category: "Bottoms",
-    price: 1299,
-    oldPrice: 1443,
-    image: "/images/cat_coords.jpg",
-    rating: 4.6,
-    reviewsCount: 18,
-    colors: [
-      { name: "Camel", value: "#C6A482" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Cotton",
-    discount: 10,
-    images: ["/images/cat_coords.jpg", "/images/cat_skirts.jpg", "/images/insta_1.jpg"],
-    description: "Sleek pleats with an airy flow. Crafted in structured light micro-twill, this midi skirt is finely knife-pleated with a clean hidden elastic waist band.",
-    details: "Knife pleats. Mid-rise elastic waistband. Midi length.",
-    sizeFit: "Regular A-line flare. Model wears size S.",
-    materialCare: "100% Polyester. Delicate cycle wash inside out. Do not tumble dry.",
-    shippingReturns: "Free shipping on orders above ₹999. Easy 7-day returns and exchanges."
-  }
-];
-
 function ProductDetails() {
   const { id } = useParams();
 
-  // Active product fallback
-  const initialFallback = useMemo(() => {
-    const pId = id && !isNaN(id) ? parseInt(id) : 2;
-    return MOCK_PRODUCTS.find(p => p.id === pId) || MOCK_PRODUCTS[1];
-  }, [id]);
-
-  const [product, setProduct] = useState(initialFallback);
+  const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   // Gallery & Purchase States
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -350,13 +53,12 @@ function ProductDetails() {
           if (res.related && Array.isArray(res.related)) {
             setRelatedProducts(res.related);
           }
+        } else if (isMounted) {
+          setProduct(null);
         }
       } catch (err) {
-        console.warn('Backend API product fetch note: using local cache/fallback', err.message);
         if (isMounted) {
-          const pId = !isNaN(id) ? parseInt(id) : id;
-          const found = MOCK_PRODUCTS.find(p => p.id === pId || p._id === id);
-          if (found) setProduct(found);
+          setProduct(null);
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -371,6 +73,7 @@ function ProductDetails() {
 
   // Normalize Images
   const galleryImages = useMemo(() => {
+    if (!product) return [];
     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
       return product.images;
     }
@@ -380,7 +83,7 @@ function ProductDetails() {
 
   // Normalize Colors
   const availableColors = useMemo(() => {
-    if (!product.colors || !Array.isArray(product.colors) || product.colors.length === 0) {
+    if (!product || !product.colors || !Array.isArray(product.colors) || product.colors.length === 0) {
       return [{ name: "Standard", value: "#1A1A1A" }];
     }
     return product.colors.map(col => {
@@ -400,10 +103,10 @@ function ProductDetails() {
 
   // Normalize Sizes
   const availableSizes = useMemo(() => {
-    if (product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0) {
-      return product.sizes;
+    if (!product || !product.sizes || !Array.isArray(product.sizes) || product.sizes.length === 0) {
+      return ["XS", "S", "M", "L", "XL"];
     }
-    return ["XS", "S", "M", "L", "XL"];
+    return product.sizes;
   }, [product]);
 
   // Scroll to top when product ID changes & initialize selections
@@ -438,6 +141,54 @@ function ProductDetails() {
     }));
   };
 
+  // Recommendations: dynamic related items
+  const recommendations = useMemo(() => {
+    if (relatedProducts.length > 0) return relatedProducts;
+    return [];
+  }, [relatedProducts]);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 font-sans animate-pulse">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          <div className="lg:col-span-7 aspect-[3/4] bg-gray-100 rounded-sm" />
+          <div className="lg:col-span-5 space-y-5">
+            <div className="h-4 bg-gray-200 rounded w-1/4" />
+            <div className="h-8 bg-gray-200 rounded w-3/4" />
+            <div className="h-6 bg-gray-200 rounded w-1/3" />
+            <div className="h-28 bg-gray-100 rounded w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center font-sans">
+        <div className="max-w-md mx-auto space-y-4">
+          <span className="text-xs uppercase font-bold tracking-[0.25em] text-[#8C6239] block">
+            Item Unavailable
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-gray-950">
+            Product Not Found
+          </h1>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            The product you are looking for may have been removed, sold out, or is temporarily inactive.
+          </p>
+          <div className="pt-4">
+            <Link
+              to="/shop"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#B07E5D] text-white text-xs font-bold uppercase tracking-widest hover:bg-[#976849] transition-all rounded-sm shadow-sm"
+            >
+              Return to Shop
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Stock status checks
   const isOutOfStock = product.status === 'Out of Stock' || (product.stock !== undefined && product.stock <= 0);
   const isLowStock = !isOutOfStock && product.stock !== undefined && product.stock > 0 && product.stock <= 5;
@@ -449,12 +200,6 @@ function ProductDetails() {
       setAddedAlert(false);
     }, 3000);
   };
-
-  // Recommendations: dynamic related items or filtered mock
-  const recommendations = useMemo(() => {
-    if (relatedProducts.length > 0) return relatedProducts;
-    return MOCK_PRODUCTS.filter(p => p.id !== product.id && p._id !== product._id).slice(0, 4);
-  }, [relatedProducts, product]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 select-none font-sans">
@@ -907,7 +652,7 @@ function ProductDetails() {
           </button>
           
           <img 
-            src={product.images[activeImageIndex]} 
+            src={galleryImages[activeImageIndex] || product.image || '/images/prod_dress.jpg'} 
             alt={product.name} 
             className="max-w-full max-h-[90vh] object-contain rounded-sm shadow-2xl" 
           />

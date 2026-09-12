@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchNewArrivals } from '../store/slices/productSlice';
 import {
   HeroSlider,
   ValuePropBar,
@@ -11,46 +12,24 @@ import {
   CustomerTestimonials,
   InstagramFeed,
   BlogSection,
-  NewsletterSection,
-  FALLBACK_PRODUCTS
+  NewsletterSection
 } from '../components/home';
 
 function Home() {
-  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { newArrivals: products = [], loading } = useSelector((state) => state.products || {});
 
-  // Fetch dynamic new arrival products on mount
+  // Fetch dynamic new arrival products from Redux
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        let response = await axiosClient.get('/products?newArrival=true&limit=8');
-        if (!response || !response.success || !Array.isArray(response.products) || response.products.length < 3) {
-          response = await axiosClient.get('/products?limit=8');
-        }
+    dispatch(fetchNewArrivals(8));
+  }, [dispatch]);
 
-        if (response && response.success && Array.isArray(response.products)) {
-          const merged = response.products.map(p => {
-            const fb = FALLBACK_PRODUCTS.find(f => f.name.toLowerCase() === p.name.toLowerCase()) || {};
-            return {
-              ...p,
-              reviewsCount: p.reviewsCount || fb.reviewsCount || 50,
-              colors: (p.colors && p.colors.length > 0) 
-                ? p.colors.map(c => typeof c === 'string' ? c : c.value) 
-                : (fb.colors || ["#FFFFFF", "#000000"])
-            };
-          });
-          setProducts(merged);
-        }
-      } catch (err) {
-        console.warn('Backend API offline. Using fallback mock products.');
-        setProducts(FALLBACK_PRODUCTS);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, []);
+  const formattedProducts = (products || []).map(p => ({
+    ...p,
+    colors: (p.colors && p.colors.length > 0) 
+      ? p.colors.map(c => typeof c === 'string' ? c : (c.value || c.name)) 
+      : []
+  }));
 
   return (
     <div className="w-full font-sans bg-white select-none overflow-x-hidden">
@@ -66,10 +45,10 @@ function Home() {
       {/* 4. Triple Promo Banners Grid */}
       <PromoBanners />
 
-      {/* 5. New Arrivals (Responsive Carousel) */}
-      <NewArrivals products={products} loading={loading} />
+      {/* 5. New Arrivals (Responsive Carousel) - displays only when products exist */}
+      <NewArrivals products={formattedProducts} loading={loading} />
 
-      {/* 6. Bestsellers (Ranked Circular Items) */}
+      {/* 6. Bestsellers (Ranked Circular Items) - displays only when bestsellers exist */}
       <Bestsellers />
 
       {/* 7. Why Shop With Lavéra? */}

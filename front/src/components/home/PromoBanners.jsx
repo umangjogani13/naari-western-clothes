@@ -1,56 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../../api/axiosClient';
-
-const FALLBACK_BANNERS = [
-  {
-    id: 1,
-    title: "SUMMER '24 COLLECTION",
-    subtitle: "Light, Breezy, Effortless.",
-    image: "/images/cat_dresses.jpg",
-    link: "/shop",
-    buttonText: "EXPLORE NOW",
-    bgColor: "#EAE3DB"
-  },
-  {
-    id: 2,
-    title: "THE WEEKEND EDIT",
-    subtitle: "Casual fits for your every plan.",
-    image: "/images/promo_weekend.jpg",
-    link: "/shop",
-    buttonText: "SHOP THE EDIT",
-    bgColor: "#EFEBE4"
-  },
-  {
-    id: 3,
-    title: "NEW IN JUST LANDED",
-    subtitle: "Fresh styles you'll love.",
-    image: "/images/prod_blazer.jpg",
-    link: "/shop",
-    buttonText: "DISCOVER NOW",
-    bgColor: "#E3E8E3"
-  }
-];
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchBanners } from '../../store/slices/bannerSlice';
 
 function PromoBanners() {
-  const [banners, setBanners] = useState(FALLBACK_BANNERS);
+  const dispatch = useDispatch();
+  const { items: banners = [], loading } = useSelector((state) => state.banners || {});
 
   useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        const res = await axiosClient.get('/banners?placement=Promo%20Banner');
-        if (res && res.success && Array.isArray(res.banners) && res.banners.length > 0) {
-          setBanners(res.banners.slice(0, 3));
-        }
-      } catch (err) {
-        console.warn('Promo banners backend offline, using fallback presets.');
-      }
-    };
-    fetchBanners();
-  }, []);
+    dispatch(fetchBanners('Promo Banner'));
+  }, [dispatch]);
+
+  // Display only when Promo Banner data is available from the backend; otherwise do not display
+  if (loading || !banners || banners.length === 0) {
+    return null;
+  }
+
+  const gridColsClass = 
+    banners.length === 1 
+      ? 'grid-cols-1 max-w-xl mx-auto' 
+      : banners.length === 2 
+        ? 'grid-cols-1 md:grid-cols-2' 
+        : 'grid-cols-1 md:grid-cols-3';
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 mb-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid ${gridColsClass} gap-6`}>
         {banners.map((banner, index) => (
           <div 
             key={banner._id || banner.id || index}
@@ -67,9 +41,11 @@ function PromoBanners() {
               <h3 className="font-serif text-base sm:text-lg lg:text-xl text-gray-950 font-medium tracking-wider leading-tight mb-2 uppercase">
                 {banner.title}
               </h3>
-              <p className="text-[10px] sm:text-xs text-gray-500 font-light leading-relaxed mb-4 sm:mb-6 line-clamp-2">
-                {banner.subtitle}
-              </p>
+              {banner.subtitle && (
+                <p className="text-[10px] sm:text-xs text-gray-500 font-light leading-relaxed mb-4 sm:mb-6 line-clamp-2">
+                  {banner.subtitle}
+                </p>
+              )}
               <a 
                 href={banner.link || '/shop'} 
                 className="border border-black text-black hover:bg-black hover:text-white text-[9px] sm:text-[10px] font-bold tracking-[0.2em] uppercase py-2 px-4 transition-all duration-300"

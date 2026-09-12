@@ -1,37 +1,13 @@
 const InstagramPost = require('../models/instagramModel');
 
-const INITIAL_POSTS = [
-  { image: "/images/insta_1.jpg", caption: "Summer elegance in satin 🤍 #LavéraStyle", displayOrder: 1, likesCount: 245, status: "Active" },
-  { image: "/images/insta_2.jpg", caption: "Denim on denim everyday mood 👖 #Lavéra", displayOrder: 2, likesCount: 189, status: "Active" },
-  { image: "/images/insta_3.jpg", caption: "Blazer co-ord perfection for the weekend brunch ✨", displayOrder: 3, likesCount: 312, status: "Active" },
-  { image: "/images/insta_4.jpg", caption: "Effortless casual luxury #LavéraWestern", displayOrder: 4, likesCount: 174, status: "Active" },
-  { image: "/images/insta_5.jpg", caption: "Golden hour glow in our bestselling dress 🌅", displayOrder: 5, likesCount: 260, status: "Active" },
-  { image: "/images/insta_6.jpg", caption: "Minimalist wardrobe staples done right ☕", displayOrder: 6, likesCount: 140, status: "Active" },
-  { image: "/images/insta_7.jpg", caption: "Breezy linen sets for sunny afternoons 🌿", displayOrder: 7, likesCount: 215, status: "Active" },
-  { image: "/images/newsletter_model.jpg", caption: "Join the Lavéra Style Club 💫 #LavéraWomen", displayOrder: 8, likesCount: 290, status: "Active" }
-];
-
-const ensureSeedData = async () => {
-  try {
-    const count = await InstagramPost.countDocuments();
-    if (count === 0) {
-      await InstagramPost.insertMany(INITIAL_POSTS);
-      console.log('[Instagram] Auto-seeded 8 initial Instagram feed posts.');
-    }
-  } catch (err) {
-    console.warn('[Instagram] Seed warning:', err.message);
-  }
-};
-
 const instagramController = {
   // GET /api/instagram (Public active feed)
   getPosts: async (req, res) => {
     try {
-      await ensureSeedData();
       const posts = await InstagramPost.find({ status: 'Active' }).sort({ displayOrder: 1, createdAt: -1 }).lean();
       
-      const formatted = (posts.length > 0 ? posts : INITIAL_POSTS).map((p, i) => ({
-        id: p._id ? p._id.toString() : i + 1,
+      const formatted = posts.map(p => ({
+        id: p._id ? p._id.toString() : p._id,
         _id: p._id,
         image: p.image,
         caption: p.caption,
@@ -43,10 +19,11 @@ const instagramController = {
       res.json({ success: true, count: formatted.length, posts: formatted });
     } catch (error) {
       console.error('[Instagram getPosts error]:', error.message);
-      res.json({
-        success: true,
-        count: INITIAL_POSTS.length,
-        posts: INITIAL_POSTS.map((p, i) => ({ id: i + 1, ...p }))
+      res.status(500).json({
+        success: false,
+        count: 0,
+        posts: [],
+        message: 'Failed to fetch instagram posts'
       });
     }
   },
@@ -54,7 +31,6 @@ const instagramController = {
   // GET /api/instagram/admin (Admin list)
   getAdminPosts: async (req, res) => {
     try {
-      await ensureSeedData();
       const posts = await InstagramPost.find().sort({ displayOrder: 1, createdAt: -1 }).lean();
       const total = await InstagramPost.countDocuments();
       const active = await InstagramPost.countDocuments({ status: 'Active' });

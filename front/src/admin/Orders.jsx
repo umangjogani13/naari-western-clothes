@@ -1,4 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  fetchOrders, 
+  updateOrderStatus, 
+  deleteOrder, 
+  createOrder 
+} from '../store/slices/orderSlice';
 import { 
   FiSearch, 
   FiPlus, 
@@ -11,20 +18,62 @@ import {
   FiX
 } from 'react-icons/fi';
 
-const initialOrders = [
-  { id: '#LV24567', name: 'Aashi Shah', email: 'aashi@email.com', phone: '+91 98765 43210', date: '22 May, 2024', time: '10:30 AM', amount: '₹2,299', rawAmount: 2299, status: 'Processing', statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]', payment: 'UPI', paymentId: '123456789@ybl', address: '123, Green Park Society Near VIP Road, Surat - 395007 Gujarat, India', items: [{ name: 'Satin Midi Dress', option: 'Beige / S', price: '₹2,299', qty: 1, total: '₹2,299' }, { name: 'Oversized Cotton Shirt', option: 'Beige / M', price: '₹1,499', qty: 1, total: '₹1,499' }, { name: 'Wide Leg Jeans', option: 'Light Blue / 28', price: '₹1,999', qty: 1, total: '₹1,999' }], subtotal: 5797, shipping: 0, cod: 40, coupon: 580, couponCode: 'LAVERA10', total: 5265, notes: 'Please deliver before 25 May.' },
-  { id: '#LV24566', name: 'Riya Mehta', email: 'riya@email.com', phone: '+91 98765 43211', date: '21 May, 2024', time: '02:15 PM', amount: '₹1,499', rawAmount: 1499, status: 'Processing', statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]', payment: 'Card', paymentId: 'pay_Nzk4MmQ5', address: 'B-402, Shanti Heights, Veshu, Surat - 395007 Gujarat, India', items: [{ name: 'Oversized Cotton Shirt', option: 'Beige / M', price: '₹1,499', qty: 1, total: '₹1,499' }], subtotal: 1499, shipping: 50, cod: 0, coupon: 0, couponCode: '', total: 1549, notes: '' },
-  { id: '#LV24565', name: 'Neha Joshi', email: 'neha@email.com', phone: '+91 98765 43212', date: '20 May, 2024', time: '11:00 AM', amount: '₹1,999', rawAmount: 1999, status: 'Shipped', statusColor: 'bg-[#EEF7F2] text-[#4C9068] border border-[#E3F2E9]', payment: 'UPI', paymentId: '987654321@okaxis', address: '702, Skyline Towers, Adajan, Surat - 395009 Gujarat, India', items: [{ name: 'Wide Leg Jeans', option: 'Light Blue / 28', price: '₹1,999', qty: 1, total: '₹1,999' }], subtotal: 1999, shipping: 0, cod: 0, coupon: 200, couponCode: 'WELCOME200', total: 1799, notes: 'Leave at reception.' },
-  { id: '#LV24564', name: 'Pooja Patel', email: 'pooja@email.com', phone: '+91 98765 43213', date: '19 May, 2024', time: '06:45 PM', amount: '₹2,799', rawAmount: 2799, status: 'Processing', statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]', payment: 'Card', paymentId: 'pay_M3k5NmEy', address: 'A-12, Royal Bungalows, Pal, Surat - 395009 Gujarat, India', items: [{ name: 'Linen Co-ord Set', option: 'Natural / L', price: '₹2,799', qty: 1, total: '₹2,799' }], subtotal: 2799, shipping: 0, cod: 0, coupon: 0, couponCode: '', total: 2799, notes: '' },
-  { id: '#LV24563', name: 'Kavya Singh', email: 'kavya@email.com', phone: '+91 98765 43214', date: '18 May, 2024', time: '04:20 PM', amount: '₹2,299', rawAmount: 2299, status: 'Delivered', statusColor: 'bg-emerald-50 text-emerald-700 border border-emerald-100', payment: 'UPI', paymentId: 'kavya@paytm', address: '45, Sunrise Avenue, VIP Road, Surat - 395007 Gujarat, India', items: [{ name: 'Satin Midi Dress', option: 'Beige / S', price: '₹2,299', qty: 1, total: '₹2,299' }], subtotal: 2299, shipping: 0, cod: 0, coupon: 0, couponCode: '', total: 2299, notes: '' }
-];
-
 const Orders = () => {
-  const [orders, setOrders] = useState(initialOrders);
+  const dispatch = useDispatch();
+  const { items: rawOrders = [] } = useSelector((state) => state.orders || {});
+
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showAddOrder, setShowAddOrder] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchOrders());
+  }, [dispatch]);
+
+  // Normalize dynamic database orders into UI structure
+  const orders = useMemo(() => {
+    return (rawOrders || []).map(o => {
+      const orderId = o.orderNumber ? `#${o.orderNumber}` : (o._id ? `#${o._id.slice(-6).toUpperCase()}` : '#ORD');
+      const st = o.status || o.orderStatus || 'Processing';
+      let badgeStyle = 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]';
+      if (st === 'Shipped') badgeStyle = 'bg-[#EEF7F2] text-[#4C9068] border border-[#E3F2E9]';
+      else if (st === 'Delivered') badgeStyle = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+      else if (st === 'Cancelled') badgeStyle = 'bg-rose-50 text-rose-700 border border-rose-100';
+
+      return {
+        ...o,
+        id: orderId,
+        realId: o._id,
+        name: o.customerName || (o.user?.name) || o.name || 'Customer',
+        email: o.customerEmail || (o.user?.email) || o.email || '',
+        phone: o.customerPhone || o.phone || '',
+        date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (o.date || 'Today'),
+        time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (o.time || '12:00 PM'),
+        amount: `₹${Number(o.total || o.totalAmount || o.rawAmount || 0).toLocaleString('en-IN')}`,
+        rawAmount: Number(o.total || o.totalAmount || o.rawAmount || 0),
+        status: st,
+        statusColor: badgeStyle,
+        payment: o.paymentMethod || o.payment || 'UPI',
+        paymentId: o.paymentId || (o._id ? `pay_${o._id.slice(-8)}` : 'N/A'),
+        address: typeof o.shippingAddress === 'string' ? o.shippingAddress : (o.address || 'Address not provided'),
+        items: Array.isArray(o.items) && o.items.length > 0 ? o.items.map(item => ({
+          name: item.name || item.product?.name || 'Product',
+          option: item.option || item.size || 'Standard',
+          price: `₹${Number(item.price || 0).toLocaleString('en-IN')}`,
+          qty: item.quantity || item.qty || 1,
+          total: `₹${Number((item.price || 0) * (item.quantity || item.qty || 1)).toLocaleString('en-IN')}`
+        })) : [],
+        subtotal: o.subtotal || o.totalAmount || 0,
+        shipping: o.shippingFee || o.shipping || 0,
+        cod: o.codFee || o.cod || 0,
+        coupon: o.couponDiscount || o.coupon || 0,
+        couponCode: o.couponCode || '',
+        total: o.total || o.totalAmount || 0,
+        notes: o.notes || ''
+      };
+    });
+  }, [rawOrders]);
 
   // New Order Form state
   const [newOrder, setNewOrder] = useState({
@@ -33,8 +82,8 @@ const Orders = () => {
     phone: '',
     address: '',
     payment: 'UPI',
-    productName: 'Satin Midi Dress',
-    price: 2299,
+    productName: '',
+    price: 0,
     qty: 1,
     couponCode: '',
     couponDiscount: 0,
@@ -51,81 +100,64 @@ const Orders = () => {
     return matchesTab && matchesSearch;
   });
 
-  const handleUpdateStatus = (id, newStatus) => {
-    setOrders(prev => prev.map(o => {
-      if (o.id === id) {
-        let badgeStyle = '';
-        if (newStatus === 'Processing') badgeStyle = 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]';
-        else if (newStatus === 'Shipped') badgeStyle = 'bg-[#EEF7F2] text-[#4C9068] border border-[#E3F2E9]';
-        else if (newStatus === 'Delivered') badgeStyle = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-        else badgeStyle = 'bg-rose-50 text-rose-700 border border-rose-100';
-        
-        const updated = { ...o, status: newStatus, statusColor: badgeStyle };
-        if (selectedOrder && selectedOrder.id === id) {
-          setSelectedOrder(updated);
-        }
-        return updated;
-      }
-      return o;
-    }));
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    const matched = orders.find(o => o.id === orderId || o.realId === orderId);
+    const targetId = matched?.realId || orderId;
+    await dispatch(updateOrderStatus({ id: targetId, status: newStatus }));
+    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder.realId === targetId)) {
+      setSelectedOrder(prev => ({ ...prev, status: newStatus }));
+    }
+    dispatch(fetchOrders());
   };
 
-  const handleDeleteOrder = (id) => {
-    if (window.confirm(`Are you sure you want to delete order ${id}?`)) {
-      setOrders(prev => prev.filter(o => o.id !== id));
-      if (selectedOrder && selectedOrder.id === id) {
+  const handleDeleteOrder = async (orderId) => {
+    const matched = orders.find(o => o.id === orderId || o.realId === orderId);
+    const targetId = matched?.realId || orderId;
+    if (window.confirm(`Are you sure you want to delete this order?`)) {
+      await dispatch(deleteOrder(targetId));
+      if (selectedOrder && (selectedOrder.id === orderId || selectedOrder.realId === targetId)) {
         setSelectedOrder(null);
       }
+      dispatch(fetchOrders());
     }
   };
 
-  const handleAddOrderSubmit = (e) => {
+  const handleAddOrderSubmit = async (e) => {
     e.preventDefault();
-    const newId = `#LV${Math.floor(10000 + Math.random() * 90000)}`;
-    const subtotal = newOrder.price * newOrder.qty;
+    const subtotal = Number(newOrder.price) * Number(newOrder.qty);
     const total = subtotal - Number(newOrder.couponDiscount);
-    
-    const orderObj = {
-      id: newId,
-      name: newOrder.name,
-      email: newOrder.email,
-      phone: newOrder.phone,
-      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      amount: `₹${total.toLocaleString('en-IN')}`,
-      rawAmount: total,
-      status: 'Processing',
-      statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]',
-      payment: newOrder.payment,
-      paymentId: newOrder.payment === 'UPI' ? 'upi_txn_' + Math.random().toString(36).substring(4, 9) : 'card_' + Math.random().toString(36).substring(4, 9),
-      address: newOrder.address,
+
+    const orderPayload = {
+      customerName: newOrder.name,
+      customerEmail: newOrder.email,
+      customerPhone: newOrder.phone,
+      shippingAddress: newOrder.address,
+      paymentMethod: newOrder.payment,
       items: [{
-        name: newOrder.productName,
-        option: 'Standard',
-        price: `₹${newOrder.price.toLocaleString('en-IN')}`,
-        qty: newOrder.qty,
-        total: `₹${(newOrder.price * newOrder.qty).toLocaleString('en-IN')}`
+        name: newOrder.productName || 'Custom Product',
+        price: Number(newOrder.price),
+        quantity: Number(newOrder.qty),
+        total: subtotal
       }],
       subtotal,
-      shipping: 0,
-      cod: 0,
-      coupon: Number(newOrder.couponDiscount),
       couponCode: newOrder.couponCode,
-      total,
-      notes: newOrder.notes
+      couponDiscount: Number(newOrder.couponDiscount),
+      totalAmount: total,
+      notes: newOrder.notes,
+      status: 'Processing'
     };
 
-    setOrders([orderObj, ...orders]);
+    await dispatch(createOrder(orderPayload));
+    dispatch(fetchOrders());
     setShowAddOrder(false);
-    // Reset form
     setNewOrder({
       name: '',
       email: '',
       phone: '',
       address: '',
       payment: 'UPI',
-      productName: 'Satin Midi Dress',
-      price: 2299,
+      productName: '',
+      price: 0,
       qty: 1,
       couponCode: '',
       couponDiscount: 0,

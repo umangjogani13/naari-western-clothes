@@ -1,28 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from '../../api/axiosClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchActiveHeroSlides } from '../../store/slices/heroSliderSlice';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 function HeroSlider() {
-  const [slides, setSlides] = useState([]);
+  const dispatch = useDispatch();
+  const { slides = [] } = useSelector((state) => state.heroSlider || {});
   const [heroSlide, setHeroSlide] = useState(0);
 
-  // Fetch active slides from backend API
+  // Fetch active slides from Redux thunk
   useEffect(() => {
-    const fetchHeroSlides = async () => {
-      try {
-        const res = await axiosClient.get('/hero-slider');
-        if (res && res.success && Array.isArray(res.slides) && res.slides.length > 0) {
-          setSlides(res.slides);
-        } else {
-          setSlides([]);
-        }
-      } catch (err) {
-        console.warn('[HeroSlider] Backend API unreachable or empty.');
-        setSlides([]);
-      }
-    };
-    fetchHeroSlides();
-  }, []);
+    dispatch(fetchActiveHeroSlides());
+  }, [dispatch]);
 
   const totalSlides = slides.length;
 

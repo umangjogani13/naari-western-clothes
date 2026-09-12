@@ -1,136 +1,6 @@
 const Category = require('../models/categoryModel');
 const Product = require('../models/productModel');
 
-const INITIAL_CATEGORIES = [
-  {
-    name: 'Dresses',
-    slug: 'dresses',
-    subtitle: 'From casual day dresses to statement makers, find the perfect fit for every mood.',
-    description: 'Explore our curated collection of luxury satin, cotton, and linen dresses designed for effortless elegance.',
-    image: '/images/cat_dresses.jpg',
-    bannerImage: '/images/newsletter_model.jpg',
-    subcategories: [
-      'All Dresses',
-      'Midi Dresses',
-      'Maxi Dresses',
-      'Mini Dresses',
-      'Bodycon Dresses',
-      'Slip Dresses',
-      'Linen Dresses'
-    ],
-    displayOrder: 1,
-    status: 'Active',
-    isFeatured: true
-  },
-  {
-    name: 'Tops',
-    slug: 'tops',
-    subtitle: 'Elevated shirts, blouses, crop tops and knits for your everyday rotation.',
-    description: 'Chic everyday essentials from breathable organic oversized shirts to flattering ruched knit crops.',
-    image: '/images/cat_tops.jpg',
-    bannerImage: '/images/cat_tops.jpg',
-    subcategories: [
-      'All Tops',
-      'Shirts',
-      'T-Shirts',
-      'Crop Tops',
-      'Blouses',
-      'Knitwear',
-      'Linen Tops'
-    ],
-    displayOrder: 2,
-    status: 'Active',
-    isFeatured: true
-  },
-  {
-    name: 'Bottoms',
-    slug: 'bottoms',
-    subtitle: 'From tailored trousers to casual denim, discover your next signature fit.',
-    description: 'Designed to move with you: wide leg trousers, cargo joggers, and pleated skirts for versatile styling.',
-    image: '/images/cat_jeans.jpg',
-    bannerImage: '/images/cat_jeans.jpg',
-    subcategories: [
-      'All Bottoms',
-      'Jeans',
-      'Pants',
-      'Skirts',
-      'Shorts',
-      'Cargo Pants',
-      'Linen Pants'
-    ],
-    displayOrder: 3,
-    status: 'Active',
-    isFeatured: true
-  },
-  {
-    name: 'Co-Ords',
-    slug: 'co-ords',
-    subtitle: 'Effortless matching sets designed to make dressing up simple and elegant.',
-    description: 'Power dressing with Mediterranean ease — coordinated blazers, relaxed linen sets, and chic skirt duos.',
-    image: '/images/cat_coords.jpg',
-    bannerImage: '/images/cat_coords.jpg',
-    subcategories: [
-      'All Co-ords',
-      'Blazer Sets',
-      'Linen Sets',
-      'Skirt Sets',
-      'Casual Sets'
-    ],
-    displayOrder: 4,
-    status: 'Active',
-    isFeatured: true
-  },
-  {
-    name: 'Skirts',
-    slug: 'skirts',
-    subtitle: 'Flowing maxis, tailored midis, and chic pleats crafted for effortless styling.',
-    description: 'Fluid drapery and contemporary knife pleats that transition effortlessly from day to night.',
-    image: '/images/cat_skirts.jpg',
-    bannerImage: '/images/cat_skirts.jpg',
-    subcategories: [
-      'All Skirts',
-      'Pleated Skirts',
-      'Midi Skirts',
-      'Maxi Skirts',
-      'Denim Skirts'
-    ],
-    displayOrder: 5,
-    status: 'Active',
-    isFeatured: true
-  },
-  {
-    name: 'Jeans',
-    slug: 'jeans',
-    subtitle: 'Premium denim silhouettes built with timeless character and comfort.',
-    description: 'Vintage high rises, dramatic wide legs, and authentic denim washes tailored for the perfect fit.',
-    image: '/images/cat_jeans.jpg',
-    bannerImage: '/images/cat_jeans.jpg',
-    subcategories: [
-      'All Jeans',
-      'Wide Leg Jeans',
-      'Straight Leg',
-      'High Rise',
-      'Cargo Denim'
-    ],
-    displayOrder: 6,
-    status: 'Active',
-    isFeatured: true
-  }
-];
-
-// Helper to auto-seed
-const ensureSeedData = async () => {
-  try {
-    const count = await Category.countDocuments();
-    if (count === 0) {
-      await Category.insertMany(INITIAL_CATEGORIES);
-      console.log('[Categories] Auto-seeded 6 initial categories into MongoDB.');
-    }
-  } catch (err) {
-    console.warn('[Categories] Seeding error:', err.message);
-  }
-};
-
 // Helper to attach product count
 const attachProductCounts = async (categories) => {
   try {
@@ -159,7 +29,6 @@ const categoryController = {
   // GET /api/categories (Public listing)
   getCategories: async (req, res) => {
     try {
-      await ensureSeedData();
       const categories = await Category.find({ status: 'Active' }).sort({ displayOrder: 1, name: 1 });
       const enriched = await attachProductCounts(categories);
       res.json({
@@ -169,10 +38,11 @@ const categoryController = {
       });
     } catch (error) {
       console.error('[Category getCategories error]:', error.message);
-      res.json({
-        success: true,
-        count: INITIAL_CATEGORIES.length,
-        categories: INITIAL_CATEGORIES
+      res.status(500).json({
+        success: false,
+        count: 0,
+        categories: [],
+        message: 'Failed to fetch categories'
       });
     }
   },
@@ -180,7 +50,6 @@ const categoryController = {
   // GET /api/categories/featured (Public home carousel listing)
   getFeaturedCategories: async (req, res) => {
     try {
-      await ensureSeedData();
       const categories = await Category.find({ status: 'Active', isFeatured: true }).sort({ displayOrder: 1, name: 1 });
       const enriched = await attachProductCounts(categories);
       res.json({
@@ -190,11 +59,11 @@ const categoryController = {
       });
     } catch (error) {
       console.error('[Category getFeaturedCategories error]:', error.message);
-      const featured = INITIAL_CATEGORIES.filter(c => c.isFeatured);
-      res.json({
-        success: true,
-        count: featured.length,
-        categories: featured
+      res.status(500).json({
+        success: false,
+        count: 0,
+        categories: [],
+        message: 'Failed to fetch featured categories'
       });
     }
   },
@@ -202,13 +71,17 @@ const categoryController = {
   // GET /api/categories/admin (Admin listing with filters & KPIs)
   getCategoriesAdmin: async (req, res) => {
     try {
-      await ensureSeedData();
-      const { search, status, featured } = req.query;
+      const { search, status, featured, sortBy, sortOrder } = req.query;
       const filter = {};
 
       if (search) {
         const regex = new RegExp(search.trim(), 'i');
-        filter.$or = [{ name: regex }, { slug: regex }, { description: regex }];
+        filter.$or = [
+          { name: regex },
+          { slug: regex },
+          { description: regex },
+          { subtitle: regex }
+        ];
       }
 
       if (status && status !== 'All') {
@@ -219,8 +92,26 @@ const categoryController = {
         filter.isFeatured = featured === 'Featured' || featured === 'true';
       }
 
-      const categories = await Category.find(filter).sort({ displayOrder: 1, createdAt: -1 });
-      const enriched = await attachProductCounts(categories);
+      let sortOptions = { displayOrder: 1, createdAt: -1 };
+      if (sortBy === 'name') {
+        sortOptions = { name: sortOrder === 'desc' ? -1 : 1 };
+      } else if (sortBy === 'createdAt') {
+        sortOptions = { createdAt: sortOrder === 'asc' ? 1 : -1 };
+      } else if (sortBy === 'displayOrder') {
+        sortOptions = { displayOrder: sortOrder === 'desc' ? -1 : 1 };
+      }
+
+      const categories = await Category.find(filter).sort(sortOptions);
+      let enriched = await attachProductCounts(categories);
+
+      // If sorting by product count
+      if (sortBy === 'productCount') {
+        enriched = enriched.sort((a, b) => 
+          sortOrder === 'asc' 
+            ? (a.productCount || 0) - (b.productCount || 0) 
+            : (b.productCount || 0) - (a.productCount || 0)
+        );
+      }
 
       // KPI stats
       const totalCount = await Category.countDocuments();
@@ -247,7 +138,6 @@ const categoryController = {
   // GET /api/categories/:slug (Single category lookup)
   getCategoryBySlug: async (req, res) => {
     try {
-      await ensureSeedData();
       const { slug } = req.params;
       const lower = slug.toLowerCase();
 
@@ -256,10 +146,6 @@ const categoryController = {
       });
 
       if (!category) {
-        const fallback = INITIAL_CATEGORIES.find(c => c.slug === lower || c.name.toLowerCase() === lower);
-        if (fallback) {
-          return res.json({ success: true, category: fallback });
-        }
         return res.status(404).json({ success: false, message: 'Category not found' });
       }
 

@@ -1,82 +1,15 @@
 const Review = require('../models/reviewModel');
 
-const INITIAL_REVIEWS = [
-  {
-    customer: "Aashi Shah",
-    rating: 5,
-    comment: "Absolutely love the quality and fit! LAVÉRA never disappoints.",
-    productName: "Satin Midi Dress",
-    productImage: "/images/prod_dress.jpg",
-    isFeaturedOnHome: true,
-    status: "Published",
-    date: "24 May, 2026"
-  },
-  {
-    customer: "Riya Mehta",
-    rating: 5,
-    comment: "Fast delivery and amazing customer support.",
-    productName: "Oversized Cotton Shirt",
-    productImage: "/images/prod_shirt.jpg",
-    isFeaturedOnHome: true,
-    status: "Published",
-    date: "20 May, 2026"
-  },
-  {
-    customer: "Neha Joshi",
-    rating: 5,
-    comment: "My new favorite store for every occasion.",
-    productName: "Wide Leg Jeans",
-    productImage: "/images/prod_jeans.jpg",
-    isFeaturedOnHome: true,
-    status: "Published",
-    date: "18 May, 2026"
-  },
-  {
-    customer: "Pooja Patel",
-    rating: 5,
-    comment: "Superb quality linen! Got so many compliments. Perfect set for summer brunches.",
-    productName: "Blazer Co-ord Set",
-    productImage: "/images/prod_blazer.jpg",
-    isFeaturedOnHome: true,
-    status: "Published",
-    date: "15 May, 2026"
-  },
-  {
-    customer: "Kavya Singh",
-    rating: 4,
-    comment: "Nice product, exactly as described. Shipping was very fast too.",
-    productName: "Ruched Crop Top",
-    productImage: "/images/prod_top.jpg",
-    isFeaturedOnHome: false,
-    status: "Published",
-    date: "10 May, 2026"
-  }
-];
-
-const ensureSeedData = async () => {
-  try {
-    const count = await Review.countDocuments();
-    if (count === 0) {
-      await Review.insertMany(INITIAL_REVIEWS);
-      console.log('[Reviews] Auto-seeded initial customer reviews.');
-    }
-  } catch (err) {
-    console.warn('[Reviews] Seed error:', err.message);
-  }
-};
-
 const reviewController = {
   // GET /api/reviews/featured (Home page featured testimonials)
   getFeaturedTestimonials: async (req, res) => {
     try {
-      await ensureSeedData();
       const reviews = await Review.find({ status: 'Published', isFeaturedOnHome: true })
         .sort({ createdAt: -1 })
         .limit(6)
         .lean();
 
-      // Fallback format matching { id, name, stars, comment }
-      const formatted = (reviews.length > 0 ? reviews : INITIAL_REVIEWS).map(r => ({
+      const formatted = reviews.map(r => ({
         id: r._id ? r._id.toString() : r.customer,
         _id: r._id,
         name: r.customer,
@@ -91,15 +24,11 @@ const reviewController = {
       res.json({ success: true, count: formatted.length, testimonials: formatted });
     } catch (error) {
       console.error('[Review getFeaturedTestimonials error]:', error.message);
-      res.json({
-        success: true,
-        count: INITIAL_REVIEWS.length,
-        testimonials: INITIAL_REVIEWS.map((r, i) => ({
-          id: i + 1,
-          name: r.customer,
-          stars: r.rating,
-          comment: r.comment
-        }))
+      res.status(500).json({
+        success: false,
+        count: 0,
+        testimonials: [],
+        message: 'Failed to fetch featured testimonials'
       });
     }
   },
@@ -107,7 +36,6 @@ const reviewController = {
   // GET /api/reviews (Public list with filtering)
   getReviews: async (req, res) => {
     try {
-      await ensureSeedData();
       const { rating, search } = req.query;
       const filter = { status: 'Published' };
 
@@ -128,7 +56,6 @@ const reviewController = {
   // GET /api/reviews/admin (Admin list with moderation stats)
   getAdminReviews: async (req, res) => {
     try {
-      await ensureSeedData();
       const { search, status, rating } = req.query;
       const filter = {};
 

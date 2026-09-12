@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchWhyShopAdmin } from '../store/slices/whyShopSlice';
 import axiosClient from '../api/axiosClient';
 import { 
   FiPlus, 
@@ -81,6 +83,9 @@ const PRESET_BG_COLORS = [
 ];
 
 const WhyShopAdmin = () => {
+  const dispatch = useDispatch();
+  const { loading } = useSelector((state) => state.whyShop);
+
   const [data, setData] = useState({
     heading: '',
     subheading: '',
@@ -88,7 +93,6 @@ const WhyShopAdmin = () => {
     features: []
   });
 
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -115,30 +119,27 @@ const WhyShopAdmin = () => {
   const [featureOrder, setFeatureOrder] = useState(1);
   const [featureStatus, setFeatureStatus] = useState('Active');
 
-  // Fetch admin data from backend API
-  const fetchData = async () => {
+  // Fetch admin data from backend API via Redux
+  const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
       setErrorMsg('');
-      const res = await axiosClient.get('/why-shop/admin');
-      if (res && res.success && res.data) {
-        const sortedFeatures = [...(res.data.features || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-        setData({ ...res.data, features: sortedFeatures });
-        setHeading(res.data.heading || '');
-        setSubheading(res.data.subheading || '');
-        setImage(res.data.image || '');
+      const res = await dispatch(fetchWhyShopAdmin()).unwrap();
+      if (res) {
+        const sortedFeatures = [...(res.features || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+        setData({ ...res, features: sortedFeatures });
+        setHeading(res.heading || '');
+        setSubheading(res.subheading || '');
+        setImage(res.image || '');
       }
     } catch (err) {
       console.error('Error fetching WhyShop data:', err);
       setErrorMsg('Failed to load section data. Please ensure the backend server is running.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [dispatch]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const notifySuccess = (msg) => {
     setSuccessMsg(msg);

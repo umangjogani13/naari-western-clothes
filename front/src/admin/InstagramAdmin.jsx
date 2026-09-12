@@ -1,4 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchAdminInstagramPosts,
+  createInstagramPost,
+  updateInstagramPost,
+  deleteInstagramPost,
+  toggleInstagramStatus
+} from '../store/slices/instagramSlice';
 import { 
   FiPlus, 
   FiEdit, 
@@ -9,7 +17,6 @@ import {
   FiAlertCircle,
   FiInstagram
 } from 'react-icons/fi';
-import axiosClient from '../api/axiosClient';
 
 const INSTA_IMAGE_PRESETS = [
   { label: "Satin Dress", url: "/images/insta_1.jpg" },
@@ -23,9 +30,8 @@ const INSTA_IMAGE_PRESETS = [
 ];
 
 const InstagramAdmin = () => {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
+  const dispatch = useDispatch();
+  const { adminList: posts, stats, loading } = useSelector((state) => state.instagram);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -34,31 +40,20 @@ const InstagramAdmin = () => {
   const [alertMsg, setAlertMsg] = useState(null);
 
   // Form Fields
-  const [image, setImage] = useState(INSTA_IMAGE_PRESETS[0].url);
+  const [image, setImage] = useState('');
   const [caption, setCaption] = useState('');
-  const [postUrl, setPostUrl] = useState('https://instagram.com');
-  const [likesCount, setLikesCount] = useState(150);
+  const [postUrl, setPostUrl] = useState('');
+  const [likesCount, setLikesCount] = useState(0);
   const [displayOrder, setDisplayOrder] = useState(1);
   const [status, setStatus] = useState('Active');
 
-  const fetchPosts = async () => {
-    try {
-      setLoading(true);
-      const res = await axiosClient.get('/instagram/admin');
-      if (res && res.success) {
-        setPosts(res.posts || []);
-        if (res.stats) setStats(res.stats);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch admin instagram posts:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadPosts = useCallback(() => {
+    dispatch(fetchAdminInstagramPosts());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchPosts();
-  }, []);
+    loadPosts();
+  }, [loadPosts]);
 
   const triggerAlert = (type, text) => {
     setAlertMsg({ type, text });
@@ -67,21 +62,21 @@ const InstagramAdmin = () => {
 
   const handleOpenAdd = () => {
     setEditPost(null);
-    setImage(INSTA_IMAGE_PRESETS[0].url);
-    setCaption('Styling LAVÉRA western essentials ✨ #LavéraFashion');
-    setPostUrl('https://instagram.com');
-    setLikesCount(150);
-    setDisplayOrder(posts.length + 1);
+    setImage(INSTA_IMAGE_PRESETS[0]?.url || '');
+    setCaption('');
+    setPostUrl('');
+    setLikesCount(0);
+    setDisplayOrder((posts?.length || 0) + 1);
     setStatus('Active');
     setShowModal(true);
   };
 
   const handleOpenEdit = (p) => {
     setEditPost(p);
-    setImage(p.image || INSTA_IMAGE_PRESETS[0].url);
+    setImage(p.image || '');
     setCaption(p.caption || '');
-    setPostUrl(p.postUrl || 'https://instagram.com');
-    setLikesCount(p.likesCount || 150);
+    setPostUrl(p.postUrl || '');
+    setLikesCount(p.likesCount !== undefined ? p.likesCount : 0);
     setDisplayOrder(p.displayOrder || 1);
     setStatus(p.status || 'Active');
     setShowModal(true);
@@ -89,65 +84,53 @@ const InstagramAdmin = () => {
 
   const handleToggleStatus = async (id) => {
     try {
-      const res = await axiosClient.patch(`/instagram/${id}/status`);
-      if (res && res.success) {
-        setPosts(prev => prev.map(p => p._id === id ? { ...p, status: res.status } : p));
-        setStats(prev => ({
-          ...prev,
-          active: res.status === 'Active' ? prev.active + 1 : prev.active - 1,
-          inactive: res.status === 'Active' ? prev.inactive - 1 : prev.inactive + 1
-        }));
-        triggerAlert('success', `Frame is now ${res.status}`);
-      }
+      const res = await dispatch(toggleInstagramStatus(id)).unwrap();
+      triggerAlert('success', `Frame is now ${res?.status || 'updated'}`);
+      loadPosts();
     } catch (err) {
-      triggerAlert('error', 'Failed to toggle frame status');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to toggle frame status');
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this Instagram frame?')) return;
     try {
-      const res = await axiosClient.delete(`/instagram/${id}`);
-      if (res && res.success) {
-        setPosts(prev => prev.filter(p => p._id !== id));
-        setStats(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
-        triggerAlert('success', 'Instagram frame deleted successfully');
-      }
+      await dispatch(deleteInstagramPost(id)).unwrap();
+      triggerAlert('success', 'Instagram frame deleted successfully');
+      loadPosts();
     } catch (err) {
-      triggerAlert('error', 'Failed to delete frame');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to delete frame');
     }
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (!image.trim()) {
+      triggerAlert('error', 'Image is required');
+      return;
+    }
     setSubmitting(true);
     const payload = {
-      image,
-      caption,
-      postUrl,
-      likesCount: Number(likesCount),
-      displayOrder: Number(displayOrder),
+      image: image.trim(),
+      caption: caption.trim(),
+      postUrl: postUrl.trim() || 'https://instagram.com',
+      likesCount: Number(likesCount) || 0,
+      displayOrder: Number(displayOrder) || 1,
       status
     };
 
     try {
       if (editPost) {
-        const res = await axiosClient.put(`/instagram/${editPost._id}`, payload);
-        if (res && res.success) {
-          setPosts(prev => prev.map(p => p._id === editPost._id ? res.post : p));
-          triggerAlert('success', 'Instagram frame updated successfully!');
-        }
+        await dispatch(updateInstagramPost({ id: editPost._id, data: payload })).unwrap();
+        triggerAlert('success', 'Instagram frame updated successfully!');
       } else {
-        const res = await axiosClient.post('/instagram', payload);
-        if (res && res.success) {
-          setPosts(prev => [...prev, res.post]);
-          setStats(prev => ({ ...prev, total: prev.total + 1, active: status === 'Active' ? prev.active + 1 : prev.active }));
-          triggerAlert('success', 'Instagram frame added successfully!');
-        }
+        await dispatch(createInstagramPost(payload)).unwrap();
+        triggerAlert('success', 'Instagram frame added successfully!');
       }
       setShowModal(false);
+      loadPosts();
     } catch (err) {
-      triggerAlert('error', err?.response?.data?.message || 'Failed to save frame');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to save frame');
     } finally {
       setSubmitting(false);
     }

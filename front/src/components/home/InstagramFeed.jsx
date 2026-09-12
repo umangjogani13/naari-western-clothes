@@ -1,26 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { FaInstagram } from 'react-icons/fa';
-import axiosClient from '../../api/axiosClient';
-import { INSTAGRAM_POSTS as DEFAULT_INSTAGRAM_POSTS } from './homeData';
+import { fetchInstagramPosts } from '../../store/slices/instagramSlice';
 
-function InstagramFeed({ posts: initialPosts }) {
-  const [feed, setFeed] = useState(initialPosts || DEFAULT_INSTAGRAM_POSTS);
+function InstagramFeed() {
+  const dispatch = useDispatch();
+  const { posts: feed = [], loading } = useSelector((state) => state.instagram || {});
   const instaRef = useRef(null);
 
   useEffect(() => {
-    const fetchInstagram = async () => {
-      try {
-        const res = await axiosClient.get('/instagram');
-        if (res && res.success && Array.isArray(res.posts) && res.posts.length > 0) {
-          setFeed(res.posts);
-        }
-      } catch (err) {
-        console.warn('Instagram API offline, using fallback catalog.');
-      }
-    };
-    fetchInstagram();
-  }, []);
+    dispatch(fetchInstagramPosts());
+  }, [dispatch]);
 
   const scrollContainer = (direction) => {
     if (instaRef.current) {
@@ -29,6 +20,11 @@ function InstagramFeed({ posts: initialPosts }) {
       instaRef.current.scrollTo({ left: scrollLeft + scrollAmount, behavior: 'smooth' });
     }
   };
+
+  // If no posts available from backend API, do not display section
+  if (loading || !feed || feed.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-16 bg-white border-t border-gray-100 relative group/insta">

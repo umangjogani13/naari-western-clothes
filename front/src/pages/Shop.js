@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import axiosClient from '../api/axiosClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProducts } from '../store/slices/productSlice';
+import { fetchCategories } from '../store/slices/categorySlice';
 import { 
   FiHeart, 
   FiX, 
@@ -11,212 +13,6 @@ import {
   FiChevronRight
 } from 'react-icons/fi';
 import { FaStar, FaHeart } from 'react-icons/fa';
-
-// 12 mock products matching the design details and categories
-const MOCK_PRODUCTS = [
-  {
-    id: 1,
-    name: "Oversized Cotton Shirt",
-    category: "Tops",
-    price: 1499,
-    image: "/images/prod_shirt.jpg",
-    rating: 5.0,
-    reviewsCount: 86,
-    colors: [
-      { name: "Tan", value: "#C6A482" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    fabric: "Cotton",
-    discount: 10
-  },
-  {
-    id: 2,
-    name: "Satin Midi Dress",
-    category: "Dresses",
-    price: 2299,
-    image: "/images/prod_dress.jpg",
-    rating: 4.8,
-    reviewsCount: 42,
-    colors: [
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Camel", value: "#5C3D2E" }
-    ],
-    sizes: ["S", "M", "L"],
-    fabric: "Satin",
-    discount: 15
-  },
-  {
-    id: 3,
-    name: "Ruched Crop Top",
-    category: "Tops",
-    price: 899,
-    image: "/images/prod_top.jpg",
-    rating: 4.7,
-    reviewsCount: 38,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" },
-      { name: "Dusty Blue", value: "#8FB8DE" }
-    ],
-    sizes: ["XS", "S", "M"],
-    fabric: "Knit",
-    discount: 0
-  },
-  {
-    id: 4,
-    name: "Wide Leg Jeans",
-    category: "Bottoms",
-    price: 1999,
-    image: "/images/prod_jeans.jpg",
-    rating: 4.9,
-    reviewsCount: 57,
-    colors: [
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["M", "L", "XL", "XXL"],
-    fabric: "Denim",
-    discount: 20
-  },
-  {
-    id: 5,
-    name: "Blazer Co-ord Set",
-    category: "Co-ords",
-    price: 2799,
-    image: "/images/prod_blazer.jpg",
-    rating: 5.0,
-    reviewsCount: 61,
-    colors: [
-      { name: "Camel", value: "#C6A482" },
-      { name: "Black", value: "#5C3D2E" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Linen",
-    discount: 30
-  },
-  {
-    id: 6,
-    name: "Cut-Out Maxi Dress",
-    category: "Dresses",
-    price: 2409,
-    image: "/images/prod_maxi.jpg",
-    rating: 4.6,
-    reviewsCount: 29,
-    colors: [
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Satin",
-    discount: 10
-  },
-  {
-    id: 7,
-    name: "Linen Shirt",
-    category: "Tops",
-    price: 1199,
-    image: "/images/promo_weekend.jpg",
-    rating: 4.5,
-    reviewsCount: 22,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    fabric: "Linen",
-    discount: 0
-  },
-  {
-    id: 8,
-    name: "Basic Rib Top",
-    category: "Tops",
-    price: 599,
-    image: "/images/promo_look.jpg",
-    rating: 4.8,
-    reviewsCount: 15,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Knit",
-    discount: 10
-  },
-  {
-    id: 9,
-    name: "Cargo Pants",
-    category: "Bottoms",
-    price: 1899,
-    image: "/images/cat_jeans.jpg",
-    rating: 4.7,
-    reviewsCount: 31,
-    colors: [
-      { name: "Forest Green", value: "#1E3F20" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Camel", value: "#C6A482" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Cotton",
-    discount: 25
-  },
-  {
-    id: 10,
-    name: "Slip Maxi Dress",
-    category: "Dresses",
-    price: 1799,
-    image: "/images/cat_skirts.jpg",
-    rating: 4.8,
-    reviewsCount: 44,
-    colors: [
-      { name: "Black", value: "#000000" },
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["S", "M", "L"],
-    fabric: "Satin",
-    discount: 40
-  },
-  {
-    id: 11,
-    name: "Denim Jacket",
-    category: "Jackets",
-    price: 1899,
-    image: "/images/insta_2.jpg",
-    rating: 4.9,
-    reviewsCount: 52,
-    colors: [
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Denim",
-    discount: 0
-  },
-  {
-    id: 12,
-    name: "Pleated Skirt",
-    category: "Bottoms",
-    price: 1299,
-    image: "/images/cat_coords.jpg",
-    rating: 4.6,
-    reviewsCount: 18,
-    colors: [
-      { name: "Camel", value: "#C6A482" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Cotton",
-    discount: 10
-  }
-];
 
 const COLOR_OPTIONS = [
   { name: "Black", value: "#000000" },
@@ -230,39 +26,17 @@ const COLOR_OPTIONS = [
 
 function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  // Dynamic Products & Categories State
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
-  const [categoriesList, setCategoriesList] = useState([]);
-  const [, setLoading] = useState(true);
+  const dispatch = useDispatch();
 
-  // Fetch products & categories from backend API
+  // Redux Products & Categories State
+  const { items: products = [] } = useSelector((state) => state.products || {});
+  const { items: categoriesList = [] } = useSelector((state) => state.categories || {});
+
+  // Fetch products & categories from Redux thunks
   useEffect(() => {
-    let isMounted = true;
-    const fetchCatalogData = async () => {
-      try {
-        setLoading(true);
-        const [prodRes, catRes] = await Promise.allSettled([
-          axiosClient.get('/products'),
-          axiosClient.get('/categories')
-        ]);
-
-        if (prodRes.status === 'fulfilled' && prodRes.value?.success && Array.isArray(prodRes.value.products) && isMounted) {
-          setProducts(prodRes.value.products);
-        }
-
-        if (catRes.status === 'fulfilled' && catRes.value?.success && Array.isArray(catRes.value.categories) && isMounted) {
-          setCategoriesList(catRes.value.categories);
-        }
-      } catch (err) {
-        console.warn('Backend API catalog fetch note: using local fallback', err.message);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    fetchCatalogData();
-    return () => { isMounted = false; };
-  }, []);
+    dispatch(fetchProducts());
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   // Filter States
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -435,15 +209,18 @@ function Shop() {
   // Dynamic Category counts matching products catalog
   const categoryCounts = useMemo(() => {
     const counts = {};
-    const defaultCats = categoriesList.length > 0 
-      ? categoriesList.map(c => c.name) 
-      : ["Dresses", "Tops", "Bottoms", "Co-Ords", "Jeans", "Skirts"];
+    const cats = categoriesList.map(c => c.name).filter(Boolean);
+    products.forEach(p => {
+      if (p.category && !cats.some(c => c.toLowerCase() === p.category.toLowerCase())) {
+        cats.push(p.category);
+      }
+    });
 
-    defaultCats.forEach(c => { counts[c] = 0; });
+    cats.forEach(c => { counts[c] = 0; });
 
     products.forEach(p => {
       if (p.category) {
-        const matchingKey = defaultCats.find(c => c.toLowerCase() === p.category.toLowerCase()) || p.category;
+        const matchingKey = cats.find(c => c.toLowerCase() === p.category.toLowerCase()) || p.category;
         counts[matchingKey] = (counts[matchingKey] || 0) + 1;
       }
     });
@@ -464,20 +241,24 @@ function Shop() {
         </button>
         {collapseState.category && (
           <div className="space-y-2 mt-1 animate-fade-in">
-            {Object.keys(categoryCounts).map(cat => (
-              <label key={cat} className="flex items-center justify-between text-xs text-gray-600 hover:text-black cursor-pointer group">
-                <div className="flex items-center gap-2.5">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedCategories.includes(cat)}
-                    onChange={() => handleCategoryChange(cat)}
-                    className="w-3.5 h-3.5 accent-rose-600 border-gray-300 rounded focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                  />
-                  <span className="font-light tracking-wide">{cat}</span>
-                </div>
-                <span className="text-[10px] font-light text-gray-400 group-hover:text-gray-600">({categoryCounts[cat]})</span>
-              </label>
-            ))}
+            {Object.keys(categoryCounts).length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No categories available</p>
+            ) : (
+              Object.keys(categoryCounts).map(cat => (
+                <label key={cat} className="flex items-center justify-between text-xs text-gray-600 hover:text-black cursor-pointer group">
+                  <div className="flex items-center gap-2.5">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedCategories.includes(cat)}
+                      onChange={() => handleCategoryChange(cat)}
+                      className="w-3.5 h-3.5 accent-rose-600 border-gray-300 rounded focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    />
+                    <span className="font-light tracking-wide">{cat}</span>
+                  </div>
+                  <span className="text-[10px] font-light text-gray-400 group-hover:text-gray-600">({categoryCounts[cat]})</span>
+                </label>
+              ))
+            )}
           </div>
         )}
       </div>
@@ -741,7 +522,7 @@ function Shop() {
               }) : [];
 
               const activeColorName = productSelectedColor[productId] || colorsList[0]?.name;
-              const displayImage = product.image || (product.images && product.images[0]) || '/images/prod_shirt.jpg';
+              const displayImage = product.image || (product.images && product.images[0]) || '';
               
               return (
                 <div key={productId} className="group flex flex-col animate-fade-in">

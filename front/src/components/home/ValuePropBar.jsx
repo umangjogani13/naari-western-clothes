@@ -1,28 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../../api/axiosClient';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchActiveValueProps } from '../../store/slices/valuePropSlice';
 import { FiTruck, FiRefreshCw, FiShield, FiAward, FiHeadphones,FiPackage,FiCreditCard,FiClock,FiCheckCircle,FiGift,FiStar,FiHeart,FiPercent,FiLock } from 'react-icons/fi';
 
 const ICON_MAP = { FiTruck,FiRefreshCw,FiShield,FiAward,FiHeadphones,FiPackage,FiCreditCard,FiClock,FiCheckCircle,FiGift,FiStar,FiHeart,FiPercent,FiLock };
 
 function ValuePropBar() {
-  const [items, setItems] = useState([]);
+  const dispatch = useDispatch();
+  const { items = [] } = useSelector((state) => state.valueProps || {});
 
   useEffect(() => {
-    const fetchValueProps = async () => {
-      try {
-        const res = await axiosClient.get('/value-props');
-        if (res && res.success && Array.isArray(res.items) && res.items.length > 0) {
-          setItems(res.items);
-        } else {
-          setItems([]);
-        }
-      } catch (err) {
-        console.warn('[ValuePropBar] Backend API offline or empty.');
-        setItems([]);
-      }
-    };
-    fetchValueProps();
-  }, []);
+    dispatch(fetchActiveValueProps());
+  }, [dispatch]);
 
   const itemCount = items.length;
 

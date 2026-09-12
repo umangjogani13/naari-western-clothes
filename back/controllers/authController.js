@@ -140,6 +140,134 @@ const authController = {
       console.error('Profile update error:', error);
       res.status(500).json({ message: 'Server error during profile update.' });
     }
+  },
+
+  // Admin: Get all users
+  getAllUsers: async (req, res) => {
+    try {
+      const users = await User.find().select('-password').sort({ createdAt: -1 }).lean();
+      res.json({
+        success: true,
+        users: users.map(u => ({
+          _id: u._id,
+          id: u._id,
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'User',
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          phone: u.phone,
+          role: u.role || 'Customer',
+          status: u.status || 'Active',
+          createdAt: u.createdAt
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ success: false, message: 'Server error fetching users' });
+    }
+  },
+
+  // Admin: Create user
+  createUser: async (req, res) => {
+    try {
+      const { name, firstName, lastName, email, phone, role, status, password } = req.body;
+      let fName = firstName;
+      let lName = lastName;
+      if (!fName && name) {
+        const parts = name.trim().split(' ');
+        fName = parts[0];
+        lName = parts.slice(1).join(' ') || '';
+      }
+      fName = fName || 'New';
+      lName = lName || 'User';
+
+      const existing = await User.findOne({ email: email.toLowerCase() });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Email already registered' });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password || 'password123', salt);
+
+      const user = new User({
+        firstName: fName,
+        lastName: lName,
+        email: email.toLowerCase(),
+        phone: phone || '0000000000',
+        password: hashedPassword,
+        role: role || 'Editor',
+        status: status || 'Active'
+      });
+      await user.save();
+
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        user: {
+          _id: user._id,
+          id: user._id,
+          name: `${user.firstName} ${user.lastName}`.trim(),
+          email: user.email,
+          role: user.role,
+          status: user.status
+        }
+      });
+    } catch (error) {
+      console.error('Create user error:', error);
+      res.status(500).json({ success: false, message: 'Server error creating user' });
+    }
+  },
+
+  // Admin: Update user
+  updateUser: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, firstName, lastName, email, role, status } = req.body;
+      const updateData = {};
+      if (firstName) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (name && !firstName) {
+        const parts = name.trim().split(' ');
+        updateData.firstName = parts[0];
+        updateData.lastName = parts.slice(1).join(' ') || '';
+      }
+      if (email) updateData.email = email.toLowerCase();
+      if (role) updateData.role = role;
+      if (status) updateData.status = status;
+
+      const updated = await User.findByIdAndUpdate(id, updateData, { returnDocument: 'after' }).select('-password').lean();
+      if (!updated) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      res.json({
+        success: true,
+        message: 'User updated successfully',
+        user: {
+          _id: updated._id,
+          id: updated._id,
+          name: `${updated.firstName} ${updated.lastName}`.trim(),
+          email: updated.email,
+          role: updated.role,
+          status: updated.status
+        }
+      });
+    } catch (error) {
+      console.error('Update user error:', error);
+      res.status(500).json({ success: false, message: 'Server error updating user' });
+    }
+  },
+
+  // Admin: Delete user
+  deleteUser: async (req, res) => {
+    try {
+      const { id } = req.params;
+      await User.findByIdAndDelete(id);
+      res.json({ success: true, message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Delete user error:', error);
+      res.status(500).json({ success: false, message: 'Server error deleting user' });
+    }
   }
 };
 

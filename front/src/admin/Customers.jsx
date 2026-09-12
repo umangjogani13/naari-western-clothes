@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchCustomers, deleteCustomer } from '../store/slices/customerSlice';
 import { 
   FiSearch, 
   FiEye, 
@@ -10,32 +12,54 @@ import {
   FiClipboard
 } from 'react-icons/fi';
 
-const initialCustomers = [
-  { id: 1, name: 'Aashi Shah', email: 'aashi@email.com', phone: '+91 98765 43210', orders: 8, spent: '₹24,560', rawSpent: 24560, status: 'Active', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', joined: '10 Jan, 2024', location: 'Surat, Gujarat, India', reviews: 5, recentOrders: [{ id: '#LV24567', date: '22 May, 2024', amount: '₹2,299', status: 'Processing', statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]' }, { id: '#LV24560', date: '18 May, 2024', amount: '₹1,499', status: 'Delivered', statusColor: 'bg-emerald-55/10 text-emerald-700' }, { id: '#LV24493', date: '10 May, 2024', amount: '₹2,799', status: 'Delivered', statusColor: 'bg-emerald-55/10 text-emerald-700' }] },
-  { id: 2, name: 'Riya Mehta', email: 'riya@email.com', phone: '+91 98765 43211', orders: 5, spent: '₹15,400', rawSpent: 15400, status: 'Active', image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=100', joined: '22 Feb, 2024', location: 'Ahmedabad, Gujarat, India', reviews: 2, recentOrders: [{ id: '#LV24566', date: '21 May, 2024', amount: '₹1,499', status: 'Processing', statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]' }] },
-  { id: 3, name: 'Neha Joshi', email: 'neha@email.com', phone: '+91 98765 43212', orders: 3, spent: '₹8,760', rawSpent: 8760, status: 'Active', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100', joined: '15 Mar, 2024', location: 'Vadodara, Gujarat, India', reviews: 1, recentOrders: [{ id: '#LV24565', date: '20 May, 2024', amount: '₹1,999', status: 'Shipped', statusColor: 'bg-sky-50 text-sky-700' }] },
-  { id: 4, name: 'Pooja Patel', email: 'pooja@email.com', phone: '+91 98765 43213', orders: 6, spent: '₹18,230', rawSpent: 18230, status: 'Active', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=100', joined: '05 Feb, 2024', location: 'Rajkot, Gujarat, India', reviews: 4, recentOrders: [{ id: '#LV24564', date: '19 May, 2024', amount: '₹2,799', status: 'Processing', statusColor: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]' }] },
-  { id: 5, name: 'Kavya Singh', email: 'kavya@email.com', phone: '+91 98765 43214', orders: 4, spent: '₹12,450', rawSpent: 12450, status: 'Inactive', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=100', joined: '01 Apr, 2024', location: 'Mumbai, Maharashtra, India', reviews: 3, recentOrders: [{ id: '#LV24563', date: '18 May, 2024', amount: '₹2,299', status: 'Delivered', statusColor: 'bg-emerald-55/10 text-emerald-700' }] }
-];
-
 const Customers = () => {
-  const [customers, setCustomers] = useState(initialCustomers);
+  const dispatch = useDispatch();
+  const { items: rawCustomers = [] } = useSelector((state) => state.customers || {});
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  const handleDelete = (id, name) => {
+  useEffect(() => {
+    dispatch(fetchCustomers());
+  }, [dispatch]);
+
+  // Normalize dynamic database customers
+  const customers = useMemo(() => {
+    return (rawCustomers || []).map((c, idx) => ({
+      ...c,
+      id: c._id || c.id || idx + 1,
+      realId: c._id,
+      name: c.name || 'Customer',
+      email: c.email || '',
+      phone: c.phone || 'N/A',
+      orders: c.ordersCount !== undefined ? c.ordersCount : (c.orders || 0),
+      spent: `₹${Number(c.totalSpent || c.spent || 0).toLocaleString('en-IN')}`,
+      rawSpent: Number(c.totalSpent || c.spent || 0),
+      status: c.status || 'Active',
+      image: c.avatar || c.image || '',
+      joined: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (c.joined || 'Recent'),
+      location: c.location || (c.city && c.country ? `${c.city}, ${c.country}` : 'India'),
+      reviews: c.reviewsCount || c.reviews || 0,
+      recentOrders: Array.isArray(c.recentOrders) ? c.recentOrders : []
+    }));
+  }, [rawCustomers]);
+
+  const handleDelete = async (id, name) => {
+    const matched = customers.find(c => c.id === id || c.realId === id);
+    const targetId = matched?.realId || id;
     if (window.confirm(`Are you sure you want to delete customer ${name}?`)) {
-      setCustomers(prev => prev.filter(c => c.id !== id));
-      if (selectedCustomer && selectedCustomer.id === id) {
+      await dispatch(deleteCustomer(targetId));
+      if (selectedCustomer && (selectedCustomer.id === id || selectedCustomer.realId === targetId)) {
         setSelectedCustomer(null);
       }
+      dispatch(fetchCustomers());
     }
   };
 
   const filteredCustomers = customers.filter(c => {
-    return c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           c.phone.includes(searchQuery);
+    return (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (c.phone || '').includes(searchQuery);
   });
 
   if (selectedCustomer) {
@@ -225,48 +249,62 @@ const Customers = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F5ECE5]">
-              {filteredCustomers.map((cust) => (
-                <tr key={cust.id} className="hover:bg-gray-50/40">
-                  <td className="px-6 py-4 text-center">
-                    <input type="checkbox" className="rounded border-gray-300 text-[#8C6239] focus:ring-[#8C6239]" />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <img src={cust.image} alt={cust.name} className="w-9 h-9 rounded-full object-cover border border-[#FAF4EE] shrink-0" />
-                      <p className="font-bold text-gray-950 cursor-pointer hover:text-[#8C6239] transition-colors" onClick={() => setSelectedCustomer(cust)}>
-                        {cust.name}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 font-semibold">{cust.email}</td>
-                  <td className="px-6 py-4 text-gray-500 font-medium">{cust.phone}</td>
-                  <td className="px-6 py-4 text-center font-bold text-gray-800">{cust.orders}</td>
-                  <td className="px-6 py-4 font-bold text-[#8C6239]">{cust.spent}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${cust.status === 'Active' ? 'bg-[#EEF7F2] text-[#4C9068]' : 'bg-gray-100 text-gray-400'}`}>
-                      {cust.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-3 text-gray-400">
-                      <button 
-                        onClick={() => setSelectedCustomer(cust)}
-                        className="p-1 hover:text-[#8C6239] transition-colors" 
-                        title="View Details"
-                      >
-                        <FiEye size={15} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(cust.id, cust.name)}
-                        className="p-1 hover:text-rose-500 transition-colors" 
-                        title="Delete"
-                      >
-                        <FiTrash2 size={15} />
-                      </button>
-                    </div>
+              {filteredCustomers.length > 0 ? (
+                filteredCustomers.map((cust) => (
+                  <tr key={cust.id} className="hover:bg-gray-50/40">
+                    <td className="px-6 py-4 text-center">
+                      <input type="checkbox" className="rounded border-gray-300 text-[#8C6239] focus:ring-[#8C6239]" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {cust.image ? (
+                          <img src={cust.image} alt={cust.name} className="w-9 h-9 rounded-full object-cover border border-[#FAF4EE] shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-[#FAF4EE] text-[#8C6239] border border-[#F5ECE5] flex items-center justify-center font-bold text-xs shrink-0">
+                            {cust.name ? cust.name.charAt(0).toUpperCase() : 'C'}
+                          </div>
+                        )}
+                        <p className="font-bold text-gray-950 cursor-pointer hover:text-[#8C6239] transition-colors" onClick={() => setSelectedCustomer(cust)}>
+                          {cust.name}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 font-semibold">{cust.email}</td>
+                    <td className="px-6 py-4 text-gray-500 font-medium">{cust.phone}</td>
+                    <td className="px-6 py-4 text-center font-bold text-gray-800">{cust.orders}</td>
+                    <td className="px-6 py-4 font-bold text-[#8C6239]">{cust.spent}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${cust.status === 'Active' ? 'bg-[#EEF7F2] text-[#4C9068]' : 'bg-gray-100 text-gray-400'}`}>
+                        {cust.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-3 text-gray-400">
+                        <button 
+                          onClick={() => setSelectedCustomer(cust)}
+                          className="p-1 hover:text-[#8C6239] transition-colors" 
+                          title="View Details"
+                        >
+                          <FiEye size={15} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(cust.id, cust.name)}
+                          className="p-1 hover:text-rose-500 transition-colors" 
+                          title="Delete"
+                        >
+                          <FiTrash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="px-6 py-10 text-center text-gray-400 font-medium">
+                    No customers found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

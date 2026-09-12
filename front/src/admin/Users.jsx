@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser
+} from '../store/slices/userSlice';
 import { 
   FiSearch, 
   FiEdit, 
   FiTrash2, 
   FiX, 
-  FiUserPlus 
+  FiUserPlus
 } from 'react-icons/fi';
 
-const initialUsers = [
-  { id: 1, name: 'Admin', email: 'admin@lavera.com', role: 'Super Admin', status: 'Active', image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=100' },
-  { id: 2, name: 'Umang Jogani', email: 'umang@lavera.com', role: 'Super Admin', status: 'Active', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=100' },
-  { id: 3, name: 'Aarav Mehta', email: 'aarav@lavera.com', role: 'Editor', status: 'Active', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100' },
-  { id: 4, name: 'Kirti Sharma', email: 'kirti@lavera.com', role: 'Viewer', status: 'Inactive', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100' }
-];
-
 const Users = () => {
-  const [users, setUsers] = useState(initialUsers);
+  const dispatch = useDispatch();
+  const { items: usersData, loading } = useSelector((state) => state.users);
+  const users = Array.isArray(usersData) ? usersData : [];
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -25,6 +28,14 @@ const Users = () => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('Editor');
   const [status, setStatus] = useState('Active');
+
+  const loadUsers = useCallback(() => {
+    dispatch(fetchUsers());
+  }, [dispatch]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const handleOpenAdd = () => {
     setEditUser(null);
@@ -37,46 +48,50 @@ const Users = () => {
 
   const handleOpenEdit = (user) => {
     setEditUser(user);
-    setName(user.name);
-    setEmail(user.email);
-    setRole(user.role);
-    setStatus(user.status);
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setRole(user.role || 'Editor');
+    setStatus(user.status || 'Active');
     setShowModal(true);
   };
 
-  const handleDelete = (id, uName) => {
-    if (window.confirm(`Are you sure you want to delete user ${uName}?`)) {
-      setUsers(prev => prev.filter(u => u.id !== id));
+  const handleDelete = async (id, uName) => {
+    if (window.confirm(`Are you sure you want to delete user "${uName}"?`)) {
+      try {
+        await dispatch(deleteUser(id)).unwrap();
+        loadUsers();
+      } catch (err) {
+        alert(typeof err === 'string' ? err : 'Failed to delete user');
+      }
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (editUser) {
-      setUsers(prev => prev.map(u => {
-        if (u.id === editUser.id) {
-          return { ...u, name, email, role, status };
-        }
-        return u;
-      }));
-    } else {
-      const newUser = {
-        id: users.length + 1,
-        name,
-        email,
-        role,
-        status,
-        image: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100'
-      };
-      setUsers([...users, newUser]);
+    if (!name.trim() || !email.trim()) {
+      alert('Name and Email are required.');
+      return;
     }
-    setShowModal(false);
+
+    try {
+      if (editUser) {
+        const uId = editUser._id || editUser.id;
+        await dispatch(updateUser({ id: uId, data: { name, email, role, status } })).unwrap();
+      } else {
+        await dispatch(createUser({ name, email, role, status })).unwrap();
+      }
+      setShowModal(false);
+      loadUsers();
+    } catch (err) {
+      alert(typeof err === 'string' ? err : 'Failed to save user');
+    }
   };
 
   const filteredUsers = users.filter(u => {
-    return u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           u.role.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return (u.name || '').toLowerCase().includes(q) ||
+           (u.email || '').toLowerCase().includes(q) ||
+           (u.role || '').toLowerCase().includes(q);
   });
 
   return (
@@ -90,7 +105,7 @@ const Users = () => {
         </div>
         <button 
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#B07E5D] text-white rounded-lg text-xs font-semibold hover:bg-[#976849] transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-[#B07E5D] text-white rounded-lg text-xs font-semibold hover:bg-[#976849] transition-colors cursor-pointer"
         >
           <FiUserPlus size={14} /> Add Admin User
         </button>
@@ -126,43 +141,62 @@ const Users = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F5ECE5]">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50/40">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <img src={user.image} alt={user.name} className="w-9 h-9 rounded-full object-cover border border-[#FAF4EE] shrink-0" />
-                      <p className="font-bold text-gray-950">{user.name}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 font-semibold">{user.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="font-bold text-gray-700 bg-gray-100 py-0.5 px-2 rounded-md">{user.role}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${user.status === 'Active' ? 'bg-[#EEF7F2] text-[#4C9068]' : 'bg-rose-50 text-rose-600'}`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-3 text-gray-400">
-                      <button 
-                        onClick={() => handleOpenEdit(user)}
-                        className="p-1 hover:text-[#8C6239] transition-colors" 
-                        title="Edit User"
-                      >
-                        <FiEdit size={15} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(user.id, user.name)}
-                        className="p-1 hover:text-rose-500 transition-colors" 
-                        title="Delete"
-                      >
-                        <FiTrash2 size={15} />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-gray-400 font-medium">
+                    Loading admin users...
                   </td>
                 </tr>
-              ))}
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-gray-400 font-medium">
+                    No admin users found. Click 'Add Admin User' to create an account.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => {
+                  const uId = user._id || user.id;
+                  return (
+                    <tr key={uId} className="hover:bg-gray-50/40">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-[#FAF4EE] text-[#8C6239] border border-[#FAF4EE] flex items-center justify-center font-bold shrink-0">
+                            {(user.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <p className="font-bold text-gray-950">{user.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 font-semibold">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-gray-700 bg-gray-100 py-0.5 px-2 rounded-md">{user.role}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${user.status === 'Active' ? 'bg-[#EEF7F2] text-[#4C9068]' : 'bg-rose-50 text-rose-600'}`}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-3 text-gray-400">
+                          <button 
+                            onClick={() => handleOpenEdit(user)}
+                            className="p-1 hover:text-[#8C6239] transition-colors cursor-pointer" 
+                            title="Edit User"
+                          >
+                            <FiEdit size={15} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(uId, user.name)}
+                            className="p-1 hover:text-rose-500 transition-colors cursor-pointer" 
+                            title="Delete"
+                          >
+                            <FiTrash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

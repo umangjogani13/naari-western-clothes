@@ -1,35 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import axiosClient from '../../api/axiosClient';
-import { CATEGORIES as DEFAULT_CATEGORIES } from './homeData';
+import { fetchFeaturedCategories } from '../../store/slices/categorySlice';
 
-function ShopByCategory({ categories: initialCategories }) {
-  const [categoryList, setCategoryList] = useState(initialCategories || DEFAULT_CATEGORIES);
+function ShopByCategory() {
+  const dispatch = useDispatch();
+  const { featured = [], loading } = useSelector((state) => state.categories || {});
   const categoryRef = useRef(null);
 
-  // Dynamically fetch featured categories from backend API
+  // Dynamically fetch active featured categories from Redux
   useEffect(() => {
-    let isMounted = true;
-    const fetchCategories = async () => {
-      try {
-        const res = await axiosClient.get('/categories/featured');
-        if (res && res.success && Array.isArray(res.categories) && res.categories.length > 0 && isMounted) {
-          setCategoryList(
-            res.categories.map(cat => ({
-              ...cat,
-              link: `/category/${cat.slug || cat.name.toLowerCase()}`
-            }))
-          );
-        }
-      } catch (err) {
-        console.warn('Backend categories API note: using default categories', err.message);
-      }
-    };
+    dispatch(fetchFeaturedCategories());
+  }, [dispatch]);
 
-    fetchCategories();
-    return () => { isMounted = false; };
-  }, []);
+  const categoryList = (featured || []).map(cat => ({
+    ...cat,
+    link: `/category/${cat.slug || cat.name.toLowerCase()}`
+  }));
 
   const scrollContainer = (direction) => {
     if (categoryRef.current) {
@@ -38,6 +26,11 @@ function ShopByCategory({ categories: initialCategories }) {
       categoryRef.current.scrollTo({ left: scrollLeft + scrollAmount, behavior: 'smooth' });
     }
   };
+
+  // Do not render the Categories section if loading or if no category data is available from backend
+  if (loading || !categoryList || categoryList.length === 0) {
+    return null;
+  }
 
   return (
     <section id="categories" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative group/section select-none">

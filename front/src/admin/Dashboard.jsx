@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchDashboardStats } from '../store/slices/dashboardSlice';
 import { 
   FiCalendar, 
   FiShoppingBag, 
@@ -17,19 +19,35 @@ import {
   FiUsers
 } from 'react-icons/fi';
 
-
 const Dashboard = () => {
+  const dispatch = useDispatch();
+  const {
+    stats: rawStats,
+    chartData,
+    recentOrders: dbRecentOrders,
+    lowStockAlerts: dbLowStockAlerts,
+    topSellingCategories: dbTopSellingCategories
+  } = useSelector((state) => state.dashboard || {});
+
+  useEffect(() => {
+    dispatch(fetchDashboardStats());
+  }, [dispatch]);
+
   // State for Sales Chart
-  const [hoveredIdx, setHoveredIdx] = useState(6); // Default to Sun (26 May) to match the tooltip in the mockup
+  const [hoveredIdx, setHoveredIdx] = useState(6);
   const [salesTimeframe, setSalesTimeframe] = useState('This Week');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDateRange, setSelectedDateRange] = useState('22 May – 28 May, 2024');
+  const [selectedDateRange, setSelectedDateRange] = useState('Last 7 Days');
 
   // Chart data definitions
-  const chartDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const chartDates = ['20 May', '21 May', '22 May', '23 May', '24 May', '25 May', '26 May'];
-  const salesThisWeek = [14000, 22000, 17000, 31000, 24000, 29000, 42000];
-  const salesLastWeek = [12000, 19000, 15000, 26000, 20000, 24000, 34000];
+  const chartDays = (chartData?.days && chartData.days.length === 7) 
+    ? chartData.days 
+    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const chartDates = chartDays;
+  const salesThisWeek = (chartData?.sales && chartData.sales.length === 7)
+    ? chartData.sales
+    : [0, 0, 0, 0, 0, 0, 0];
+  const salesLastWeek = [0, 0, 0, 0, 0, 0, 0];
 
   // SVG Chart Configurations
   const svgWidth = 500;
@@ -41,7 +59,7 @@ const Dashboard = () => {
 
   const chartWidth = svgWidth - paddingLeft - paddingRight;
   const chartHeight = svgHeight - paddingTop - paddingBottom;
-  const maxSalesVal = 50000;
+  const maxSalesVal = Math.max(...salesThisWeek, 10000);
 
   // Scale calculations for SVG path coordinates
   const getX = (index) => paddingLeft + index * (chartWidth / 6);
@@ -56,7 +74,7 @@ const Dashboard = () => {
 
   // Donut values configuration
   const donutRadius = 40;
-  const donutCircumference = 2 * Math.PI * donutRadius; // ~251.32
+  const donutCircumference = 2 * Math.PI * donutRadius;
 
   // Calculate percentages for donut rings
   const getDonutRingProps = (ratio, cumulativeOffsetRatio) => {
@@ -67,83 +85,54 @@ const Dashboard = () => {
 
   // 6 Stats Cards definitions
   const stats = [
-    { label: 'Total Sales', value: '₹12,45,650', trend: '18.6%', isPositive: true, subLabel: 'vs last week', icon: FiShoppingBag, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
-    { label: 'Total Orders', value: '1,245', trend: '12.4%', isPositive: true, subLabel: 'vs last week', icon: FiClipboard, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
-    { label: 'Total Customers', value: '3,568', trend: '10.2%', isPositive: true, subLabel: 'vs last week', icon: FiUser, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
-    { label: 'Pending Orders', value: '85', trend: '5.3%', isPositive: false, subLabel: 'vs last week', icon: FiPackage, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
-    { label: 'Return Requests', value: '23', trend: '8.1%', isPositive: false, subLabel: 'vs last week', icon: FiRotateCcw, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
-    { label: 'Low Stock Items', value: '18', isLink: true, actionText: 'View Details', icon: FiAlertTriangle, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
+    { label: 'Total Sales', value: rawStats?.totalSales || '₹0', trend: null, subLabel: 'lifetime', icon: FiShoppingBag, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
+    { label: 'Total Orders', value: String(rawStats?.totalOrders || 0), trend: null, subLabel: 'orders placed', icon: FiClipboard, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
+    { label: 'Total Customers', value: String(rawStats?.totalCustomers || 0), trend: null, subLabel: 'registered users', icon: FiUser, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
+    { label: 'Pending Orders', value: String(rawStats?.pendingOrders || 0), trend: null, subLabel: 'needs fulfillment', icon: FiPackage, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
+    { label: 'Return Requests', value: String(rawStats?.returnRequests || 0), trend: null, subLabel: 'returns/refunds', icon: FiRotateCcw, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
+    { label: 'Low Stock Items', value: String(rawStats?.lowStockCount || 0), isLink: true, actionText: 'View Details', icon: FiAlertTriangle, color: 'text-[#8C6239]', bgColor: 'bg-[#FAF4EE]', border: 'border-[#F5ECE5]' },
   ];
 
   // Top Selling Categories
-  const topSellingCategories = [
-    { name: 'Dresses', amount: '₹4,25,000', percentage: 34, color: 'bg-[#D09E84]' },
-    { name: 'Tops', amount: '₹2,85,000', percentage: 23, color: 'bg-[#E8D5C8]' },
-    { name: 'Bottoms', amount: '₹2,15,000', percentage: 17, color: 'bg-[#C4BAAF]' },
-    { name: 'Co-ords', amount: '₹1,45,000', percentage: 12, color: 'bg-[#7AA0B4]' },
-    { name: 'Others', amount: '₹75,650', percentage: 6, color: 'bg-[#D6D6D6]' },
-  ];
+  const topSellingCategories = (dbTopSellingCategories && dbTopSellingCategories.length > 0)
+    ? dbTopSellingCategories
+    : [];
 
-  // Recent Orders List (mockup layout style)
-  const recentOrders = [
-    { id: '#LV24567', customer: 'Aashi Shah', date: '22 May, 2024', amount: '₹2,299', status: 'Processing', badgeClass: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]' },
-    { id: '#LV24566', customer: 'Riya Mehta', date: '22 May, 2024', amount: '₹1,499', status: 'Processing', badgeClass: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]' },
-    { id: '#LV24565', customer: 'Neha Joshi', date: '21 May, 2024', amount: '₹1,999', status: 'Shipped', badgeClass: 'bg-[#EEF7F2] text-[#4C9068] border border-[#E1EFE7]' },
-    { id: '#LV24564', customer: 'Pooja Patel', date: '21 May, 2024', amount: '₹2,799', status: 'Processing', badgeClass: 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]' },
-    { id: '#LV24563', customer: 'Kavya Singh', date: '20 May, 2024', amount: '₹2,299', status: 'Delivered', badgeClass: 'bg-[#EEF7F2] text-[#4C9068] border border-[#E1EFE7]' },
-  ];
+  // Recent Orders List (from database)
+  const recentOrders = (dbRecentOrders && dbRecentOrders.length > 0)
+    ? dbRecentOrders.map(o => ({
+        id: o.orderNumber ? `#${o.orderNumber}` : (o._id ? `#${o._id.slice(-6).toUpperCase()}` : '#ORD'),
+        customer: o.customerName || (o.user?.name) || 'Customer',
+        date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent',
+        amount: `₹${Number(o.totalAmount || o.amount || 0).toLocaleString('en-IN')}`,
+        status: o.orderStatus || o.status || 'Processing',
+        badgeClass: (o.orderStatus === 'Delivered' || o.status === 'Delivered')
+          ? 'bg-[#EEF7F2] text-[#4C9068] border border-[#E1EFE7]'
+          : 'bg-[#FAF4EE] text-[#C18F6B] border border-[#F5ECE5]'
+      }))
+    : [];
 
-  // Low Stock Items (mockup layout style)
-  const lowStockAlerts = [
-    { name: 'Linen Co-ord Set (M)', stock: 5, threshold: 10, img: '/images/cat_coords.jpg' },
-    { name: 'Satin Midi Dress (S)', stock: 7, threshold: 10, img: '/images/prod_dress.jpg' },
-    { name: 'Wide Leg Jeans (28)', stock: 6, threshold: 10, img: '/images/prod_jeans.jpg' },
-    { name: 'Oversized Shirt (M)', stock: 8, threshold: 10, img: '/images/prod_shirt.jpg' },
-    { name: 'Blazer Co-ord Set (S)', stock: 4, threshold: 10, img: '/images/prod_blazer.jpg' },
-  ];
+  // Low Stock Items (from database)
+  const lowStockAlerts = (dbLowStockAlerts && dbLowStockAlerts.length > 0)
+    ? dbLowStockAlerts.map(p => ({
+        name: p.name,
+        stock: p.stock || 0,
+        threshold: 10,
+        img: p.image || (p.images && p.images[0]) || ''
+      }))
+    : [];
 
   // Sales by Country list
   const salesByCountry = [
-    { country: 'India', flag: '🇮🇳', amount: '₹8,45,000', percentage: 51, color: 'bg-[#C18F6B]' },
-    { country: 'USA', flag: '🇺🇸', amount: '₹2,85,000', percentage: 23, color: 'bg-[#C18F6B]' },
-    { country: 'UK', flag: '🇬🇧', amount: '₹1,45,000', percentage: 12, color: 'bg-[#C18F6B]' },
-    { country: 'Canada', flag: '🇨🇦', amount: '₹95,000', percentage: 8, color: 'bg-[#C18F6B]' },
-    { country: 'Australia', flag: '🇦🇺', amount: '₹75,650', percentage: 6, color: 'bg-[#C18F6B]' },
+    { country: 'India', flag: '🇮🇳', amount: rawStats?.totalSales || '₹0', percentage: 100, color: 'bg-[#C18F6B]' },
   ];
 
-  // Monthly Sales Overview mock data (30 items representing days of May)
-  const monthlySalesData = [
-    { day: 1, sales: 18000, orders: 12000 },
-    { day: 2, sales: 22000, orders: 14000 },
-    { day: 3, sales: 15000, orders: 11000 },
-    { day: 4, sales: 29000, orders: 18000 },
-    { day: 5, sales: 34000, orders: 22000 },
-    { day: 6, sales: 25000, orders: 16000 },
-    { day: 7, sales: 19000, orders: 13000 },
-    { day: 8, sales: 31000, orders: 19000 },
-    { day: 9, sales: 42000, orders: 25000 },
-    { day: 10, sales: 28000, orders: 17000 },
-    { day: 11, sales: 23000, orders: 15000 },
-    { day: 12, sales: 37000, orders: 21000 },
-    { day: 13, sales: 44000, orders: 28000 },
-    { day: 14, sales: 32000, orders: 20000 },
-    { day: 15, sales: 27000, orders: 16000 },
-    { day: 16, sales: 30000, orders: 19000 },
-    { day: 17, sales: 41000, orders: 26000 },
-    { day: 18, sales: 29000, orders: 18000 },
-    { day: 19, sales: 21000, orders: 14000 },
-    { day: 20, sales: 35000, orders: 22000 },
-    { day: 21, sales: 48000, orders: 30000 },
-    { day: 22, sales: 33000, orders: 21000 },
-    { day: 23, sales: 26000, orders: 17000 },
-    { day: 24, sales: 38000, orders: 24000 },
-    { day: 25, sales: 43000, orders: 27000 },
-    { day: 26, sales: 42000, orders: 26000 }, // Matches highlighted day
-    { day: 27, sales: 31000, orders: 20000 },
-    { day: 28, sales: 25000, orders: 15000 },
-    { day: 29, sales: 36000, orders: 22000 },
-    { day: 30, sales: 40000, orders: 25000 }
-  ];
+  // Monthly Sales Overview
+  const monthlySalesData = Array.from({ length: 30 }, (_, idx) => ({
+    day: idx + 1,
+    sales: (salesThisWeek && salesThisWeek[idx % salesThisWeek.length]) || 0,
+    orders: 0
+  }));
 
   // Quick Actions list
   const quickActions = [
@@ -493,19 +482,27 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#FAF6F2]">
-                  {recentOrders.map((ord, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50/40 transition-colors">
-                      <td className="py-2 text-gray-850">{ord.id}</td>
-                      <td className="py-2 text-gray-500 font-medium whitespace-nowrap">{ord.customer}</td>
-                      <td className="py-2 text-gray-400 whitespace-nowrap">{ord.date}</td>
-                      <td className="py-2 text-gray-800">{ord.amount}</td>
-                      <td className="py-2 text-right">
-                        <span className={`inline-block text-[9px] px-2 py-0.5 rounded ${ord.badgeClass}`}>
-                          {ord.status}
-                        </span>
+                  {recentOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="py-6 text-center text-xs text-gray-400">
+                        No orders recorded yet
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    recentOrders.map((ord, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/40 transition-colors">
+                        <td className="py-2 text-gray-850">{ord.id}</td>
+                        <td className="py-2 text-gray-500 font-medium whitespace-nowrap">{ord.customer}</td>
+                        <td className="py-2 text-gray-400 whitespace-nowrap">{ord.date}</td>
+                        <td className="py-2 text-gray-800">{ord.amount}</td>
+                        <td className="py-2 text-right">
+                          <span className={`inline-block text-[9px] px-2 py-0.5 rounded ${ord.badgeClass}`}>
+                            {ord.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -522,7 +519,7 @@ const Dashboard = () => {
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-[#F5ECE5] mb-3">
               <h3 className="text-sm text-gray-800 font-sans tracking-wide uppercase">Low Stock Alert</h3>
-              <span className="text-[10px] text-gray-400 cursor-pointer hover:underline">View All</span>
+              <Link to="/admin/inventory" className="text-[10px] text-gray-400 cursor-pointer hover:underline">View All</Link>
             </div>
 
             <div className="overflow-x-auto">
@@ -536,21 +533,29 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#FAF6F2]">
-                  {lowStockAlerts.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50/40 transition-colors">
-                      <td className="py-1.5 flex items-center gap-2">
-                        <img src={item.img} alt={item.name} className="w-6 h-6 rounded object-cover shrink-0 border border-gray-100" />
-                        <span className="font-medium text-gray-700 truncate max-w-[100px]">{item.name}</span>
-                      </td>
-                      <td className="py-1.5 text-center font-bold text-rose-600">{item.stock}</td>
-                      <td className="py-1.5 text-center text-gray-400 font-medium">{item.threshold}</td>
-                      <td className="py-1.5 text-right">
-                        <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-wider">
-                          Low Stock
-                        </span>
+                  {lowStockAlerts.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="py-6 text-center text-xs text-gray-400">
+                        No low stock alerts
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    lowStockAlerts.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/40 transition-colors">
+                        <td className="py-1.5 flex items-center gap-2">
+                          {item.img && <img src={item.img} alt={item.name} className="w-6 h-6 rounded object-cover shrink-0 border border-gray-100" />}
+                          <span className="font-medium text-gray-700 truncate max-w-[100px]">{item.name}</span>
+                        </td>
+                        <td className="py-1.5 text-center font-bold text-rose-600">{item.stock}</td>
+                        <td className="py-1.5 text-center text-gray-400 font-medium">{item.threshold}</td>
+                        <td className="py-1.5 text-right">
+                          <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-wider">
+                            Low Stock
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -573,8 +578,8 @@ const Dashboard = () => {
             <div className="text-left mb-4">
               <span className="text-[10px] text-gray-400 uppercase tracking-wider">Total Customers</span>
               <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-xl text-gray-900 leading-none">3,568</span>
-                <span className="text-[10px] font-bold text-emerald-600">↑ 10.2% <span className="text-gray-400 font-medium ml-0.5">vs last week</span></span>
+                <span className="text-xl text-gray-900 leading-none">{rawStats?.totalCustomers || 0}</span>
+                <span className="text-[10px] font-bold text-gray-500">Registered</span>
               </div>
             </div>
 
@@ -593,9 +598,9 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#6B8B9B]" />
-                    <span className="font-semibold text-gray-500">Female</span>
+                    <span className="font-semibold text-gray-500">Active</span>
                   </div>
-                  <span className="font-bold text-gray-800">68% <span className="text-gray-400 font-medium">(2,428)</span></span>
+                  <span className="font-bold text-gray-800">{rawStats?.totalCustomers || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">

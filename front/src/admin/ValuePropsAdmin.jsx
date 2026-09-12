@@ -1,4 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchAdminValueProps,
+  createValueProp,
+  updateValueProp,
+  deleteValueProp,
+  toggleValuePropStatus
+} from '../store/slices/valuePropSlice';
 import axiosClient from '../api/axiosClient';
 import { FiPlus, FiEdit, FiTrash2, FiX, FiEye, FiEyeOff, FiCheckCircle, FiRefreshCw,FiTruck,FiShield,FiAward,FiHeadphones,FiPackage,FiCreditCard,FiClock,FiGift,FiStar,FiHeart,FiPercent,FiLock,FiArrowUp,FiArrowDown,FiSearch } from 'react-icons/fi';
 
@@ -37,8 +45,10 @@ export const AVAILABLE_ICONS = [
 ];
 
 const ValuePropsAdmin = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { adminList: itemsData, loading } = useSelector((state) => state.valueProps);
+  const items = Array.isArray(itemsData) ? itemsData : [];
+
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -58,27 +68,15 @@ const ValuePropsAdmin = () => {
   const [order, setOrder] = useState(1);
   const [status, setStatus] = useState('Active');
 
-  // Fetch all items from backend API
-  const fetchItems = async () => {
-    try {
-      setLoading(true);
-      setErrorMsg('');
-      const res = await axiosClient.get('/value-props/admin');
-      if (res && res.success && Array.isArray(res.items)) {
-        const sorted = [...res.items].sort((a, b) => (a.order || 0) - (b.order || 0));
-        setItems(sorted);
-      }
-    } catch (err) {
-      console.error('Error fetching value props:', err);
-      setErrorMsg('Failed to load value props. Please ensure the backend server is running.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch all items from backend API via Redux
+  const fetchItemsData = useCallback(() => {
+    setErrorMsg('');
+    dispatch(fetchAdminValueProps());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchItems();
-  }, []);
+    fetchItemsData();
+  }, [fetchItemsData]);
 
   const notifySuccess = (msg) => {
     setSuccessMsg(msg);
@@ -112,14 +110,12 @@ const ValuePropsAdmin = () => {
     if (window.confirm(`Are you sure you want to delete "${itemTitle}"?`)) {
       try {
         setActionLoading(true);
-        const res = await axiosClient.delete(`/value-props/${id}`);
-        if (res && res.success) {
-          setItems(prev => prev.filter(i => i._id !== id));
-          notifySuccess('Value proposition item deleted successfully.');
-        }
+        await dispatch(deleteValueProp(id)).unwrap();
+        notifySuccess('Value proposition item deleted successfully.');
+        fetchItemsData();
       } catch (err) {
         console.error('Delete error:', err);
-        alert('Failed to delete item from backend.');
+        alert(typeof err === 'string' ? err : 'Failed to delete item from backend.');
       } finally {
         setActionLoading(false);
       }
@@ -130,14 +126,12 @@ const ValuePropsAdmin = () => {
   const handleToggleStatus = async (id) => {
     try {
       setActionLoading(true);
-      const res = await axiosClient.patch(`/value-props/${id}/status`);
-      if (res && res.success && res.item) {
-        setItems(prev => prev.map(i => i._id === id ? res.item : i));
-        notifySuccess(`Item marked as ${res.item.status}`);
-      }
+      const res = await dispatch(toggleValuePropStatus(id)).unwrap();
+      notifySuccess(`Item marked as ${res?.item?.status || 'updated'}`);
+      fetchItemsData();
     } catch (err) {
       console.error('Toggle status error:', err);
-      alert('Failed to toggle status.');
+      alert(typeof err === 'string' ? err : 'Failed to toggle status.');
     } finally {
       setActionLoading(false);
     }
@@ -148,9 +142,9 @@ const ValuePropsAdmin = () => {
     try {
       setActionLoading(true);
       const res = await axiosClient.patch(`/value-props/${id}/move`, { direction });
-      if (res && res.success && Array.isArray(res.items)) {
-        setItems(res.items);
+      if (res && res.success) {
         notifySuccess(`Item moved ${direction} successfully.`);
+        fetchItemsData();
       }
     } catch (err) {
       console.error(`Move ${direction} error:`, err);
@@ -179,25 +173,17 @@ const ValuePropsAdmin = () => {
     try {
       setActionLoading(true);
       if (editItemId) {
-        const res = await axiosClient.put(`/value-props/${editItemId}`, payload);
-        if (res && res.success && res.item) {
-          setItems(prev => {
-            const updated = prev.map(i => i._id === editItemId ? res.item : i);
-            return updated.sort((a, b) => (a.order || 0) - (b.order || 0));
-          });
-          notifySuccess('Value proposition updated successfully!');
-        }
+        await dispatch(updateValueProp({ id: editItemId, data: payload })).unwrap();
+        notifySuccess('Value proposition updated successfully!');
       } else {
-        const res = await axiosClient.post('/value-props', payload);
-        if (res && res.success && res.item) {
-          setItems(prev => [...prev, res.item].sort((a, b) => (a.order || 0) - (b.order || 0)));
-          notifySuccess('Value proposition created successfully!');
-        }
+        await dispatch(createValueProp(payload)).unwrap();
+        notifySuccess('Value proposition created successfully!');
       }
       setShowModal(false);
+      fetchItemsData();
     } catch (err) {
       console.error('Form submit error:', err);
-      alert('Failed to save item to backend.');
+      alert(typeof err === 'string' ? err : 'Failed to save item to backend.');
     } finally {
       setActionLoading(false);
     }
@@ -231,7 +217,7 @@ const ValuePropsAdmin = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchItems}
+            onClick={fetchItemsData}
             disabled={loading || actionLoading}
             className="flex items-center gap-1.5 px-3.5 py-2 border border-[#EAE3DC] bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
             title="Refresh Value Props from Backend"

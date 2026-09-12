@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../../api/axiosClient';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchWhyShop } from '../../store/slices/whyShopSlice';
 import { 
   FiAward, 
   FiTrendingUp, 
@@ -35,24 +36,12 @@ const ICON_MAP = {
 };
 
 function WhyShopWithUs() {
-  const [data, setData] = useState(null);
+  const dispatch = useDispatch();
+  const { data } = useSelector((state) => state.whyShop || {});
 
   useEffect(() => {
-    const fetchWhyShopData = async () => {
-      try {
-        const res = await axiosClient.get('/why-shop');
-        if (res && res.success && res.data && Array.isArray(res.data.features) && res.data.features.length > 0) {
-          setData(res.data);
-        } else {
-          setData(null);
-        }
-      } catch (err) {
-        console.warn('[WhyShopWithUs] Backend API offline or empty.');
-        setData(null);
-      }
-    };
-    fetchWhyShopData();
-  }, []);
+    dispatch(fetchWhyShop());
+  }, [dispatch]);
 
   if (!data || !Array.isArray(data.features) || data.features.length === 0) {
     return null;

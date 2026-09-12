@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axiosClient from '../api/axiosClient';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProducts } from '../store/slices/productSlice';
+import { fetchCategoryBySlug } from '../store/slices/categorySlice';
 import { 
   FiHeart, 
   FiChevronLeft, 
@@ -11,212 +13,6 @@ import {
   FiChevronUp 
 } from 'react-icons/fi';
 import { FaStar, FaHeart } from 'react-icons/fa';
-
-// MOCK Products
-const MOCK_PRODUCTS = [
-  {
-    id: 1,
-    name: "Oversized Cotton Shirt",
-    category: "Tops",
-    price: 1499,
-    image: "/images/prod_shirt.jpg",
-    rating: 5.0,
-    reviewsCount: 86,
-    colors: [
-      { name: "Tan", value: "#C6A482" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    fabric: "Cotton",
-    discount: 10
-  },
-  {
-    id: 2,
-    name: "Satin Midi Dress",
-    category: "Dresses",
-    price: 2299,
-    image: "/images/prod_dress.jpg",
-    rating: 4.8,
-    reviewsCount: 124,
-    colors: [
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Camel", value: "#5C3D2E" }
-    ],
-    sizes: ["S", "M", "L"],
-    fabric: "Satin",
-    discount: 15
-  },
-  {
-    id: 3,
-    name: "Ruched Crop Top",
-    category: "Tops",
-    price: 899,
-    image: "/images/prod_top.jpg",
-    rating: 4.7,
-    reviewsCount: 38,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" },
-      { name: "Dusty Blue", value: "#8FB8DE" }
-    ],
-    sizes: ["XS", "S", "M"],
-    fabric: "Knit",
-    discount: 20
-  },
-  {
-    id: 4,
-    name: "Wide Leg Jeans",
-    category: "Bottoms",
-    price: 1999,
-    image: "/images/prod_jeans.jpg",
-    rating: 4.9,
-    reviewsCount: 57,
-    colors: [
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["M", "L", "XL", "XXL"],
-    fabric: "Denim",
-    discount: 20
-  },
-  {
-    id: 5,
-    name: "Blazer Co-ord Set",
-    category: "Co-ords",
-    price: 2799,
-    image: "/images/prod_blazer.jpg",
-    rating: 5.0,
-    reviewsCount: 61,
-    colors: [
-      { name: "Camel", value: "#C6A482" },
-      { name: "Black", value: "#5C3D2E" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Linen",
-    discount: 30
-  },
-  {
-    id: 6,
-    name: "Cut-Out Maxi Dress",
-    category: "Dresses",
-    price: 2409,
-    image: "/images/prod_maxi.jpg",
-    rating: 4.6,
-    reviewsCount: 29,
-    colors: [
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Satin",
-    discount: 10
-  },
-  {
-    id: 7,
-    name: "Linen Shirt",
-    category: "Tops",
-    price: 1199,
-    image: "/images/promo_weekend.jpg",
-    rating: 4.5,
-    reviewsCount: 22,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    fabric: "Linen",
-    discount: 0
-  },
-  {
-    id: 8,
-    name: "Basic Rib Top",
-    category: "Tops",
-    price: 599,
-    image: "/images/promo_look.jpg",
-    rating: 4.8,
-    reviewsCount: 15,
-    colors: [
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Knit",
-    discount: 10
-  },
-  {
-    id: 9,
-    name: "Cargo Pants",
-    category: "Bottoms",
-    price: 1899,
-    image: "/images/cat_jeans.jpg",
-    rating: 4.7,
-    reviewsCount: 31,
-    colors: [
-      { name: "Forest Green", value: "#1E3F20" },
-      { name: "Cream", value: "#F5ECE1" },
-      { name: "Camel", value: "#C6A482" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Cotton",
-    discount: 25
-  },
-  {
-    id: 10,
-    name: "Slip Maxi Dress",
-    category: "Dresses",
-    price: 1799,
-    image: "/images/cat_skirts.jpg",
-    rating: 4.8,
-    reviewsCount: 44,
-    colors: [
-      { name: "Black", value: "#000000" },
-      { name: "Wine", value: "#9A1F40" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["S", "M", "L"],
-    fabric: "Satin",
-    discount: 40
-  },
-  {
-    id: 11,
-    name: "Denim Jacket",
-    category: "Jackets",
-    price: 1899,
-    image: "/images/insta_2.jpg",
-    rating: 4.9,
-    reviewsCount: 52,
-    colors: [
-      { name: "Dusty Blue", value: "#8FB8DE" },
-      { name: "Black", value: "#000000" }
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    fabric: "Denim",
-    discount: 0
-  },
-  {
-    id: 12,
-    name: "Pleated Skirt",
-    category: "Bottoms",
-    price: 1299,
-    image: "/images/cat_coords.jpg",
-    rating: 4.6,
-    reviewsCount: 18,
-    colors: [
-      { name: "Camel", value: "#C6A482" },
-      { name: "Black", value: "#000000" },
-      { name: "Cream", value: "#F5ECE1" }
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    fabric: "Cotton",
-    discount: 10
-  }
-];
 
 // Color Swatch Filter Options
 const COLOR_OPTIONS = [
@@ -229,118 +25,50 @@ const COLOR_OPTIONS = [
   { name: "Camel", value: "#C6A482" }
 ];
 
-// Subcategory mapping by category route
-const SUBCATEGORIES = {
-  "dresses": [
-    "All Dresses",
-    "Midi Dresses",
-    "Maxi Dresses",
-    "Mini Dresses",
-    "Bodycon Dresses",
-    "Slip Dresses",
-    "Linen Dresses"
-  ],
-  "tops": [
-    "All Tops",
-    "Shirts",
-    "T-Shirts",
-    "Crop Tops",
-    "Blouses",
-    "Knitwear",
-    "Linen Tops"
-  ],
-  "bottoms": [
-    "All Bottoms",
-    "Jeans",
-    "Pants",
-    "Skirts",
-    "Shorts",
-    "Cargo Pants",
-    "Linen Pants"
-  ],
-  "co-ords": [
-    "All Co-ords",
-    "Blazer Sets",
-    "Linen Sets",
-    "Skirt Sets",
-    "Casual Sets"
-  ]
-};
-
-// Dynamic Category banners config
-const CATEGORY_BANNERS = {
-  "dresses": {
-    title: "Dresses",
-    subtitle: "From casual day dresses to statement makers, find the perfect fit for every mood.",
-    image: "/images/newsletter_model.jpg",
-    categoryFilter: "Dresses"
-  },
-  "tops": {
-    title: "Tops",
-    subtitle: "Elevated shirts, blouses, crop tops and knits for your everyday rotation.",
-    image: "/images/cat_tops.jpg",
-    categoryFilter: "Tops"
-  },
-  "bottoms": {
-    title: "Bottoms",
-    subtitle: "From tailored trousers to casual denim, discover your next signature fit.",
-    image: "/images/cat_jeans.jpg",
-    categoryFilter: "Bottoms"
-  },
-  "co-ords": {
-    title: "Co-ords",
-    subtitle: "Effortless matching sets designed to make dressing up simple and elegant.",
-    image: "/images/cat_coords.jpg",
-    categoryFilter: "Co-ords"
-  }
-};
-
 function CategoryPage() {
   const { category } = useParams();
   const catKey = (category || 'dresses').toLowerCase();
+  const dispatch = useDispatch();
 
-  // Dynamic Category Metadata state
-  const [categoryData, setCategoryData] = useState(null);
+  // Redux Products & Categories State
+  const { items: products = [] } = useSelector((state) => state.products || {});
+  const { currentCategory } = useSelector((state) => state.categories || {});
 
-  // Fetch category metadata dynamically from backend
+  // Fetch dynamic category metadata and products from Redux
   useEffect(() => {
-    let isMounted = true;
-    const fetchCategoryInfo = async () => {
-      try {
-        const res = await axiosClient.get(`/categories/${catKey}`);
-        if (res && res.success && res.category && isMounted) {
-          setCategoryData(res.category);
-        }
-      } catch (err) {
-        console.warn(`Using default category config for "${catKey}":`, err.message);
-      }
-    };
     if (catKey) {
-      fetchCategoryInfo();
+      dispatch(fetchCategoryBySlug(catKey));
     }
-    return () => { isMounted = false; };
-  }, [catKey]);
+    dispatch(fetchProducts());
+  }, [dispatch, catKey]);
 
-  // Load banner info from backend or fallback to config
+  // Load banner info dynamically from backend
   const banner = useMemo(() => {
-    if (categoryData) {
+    const fallbackTitle = catKey.charAt(0).toUpperCase() + catKey.slice(1);
+    if (currentCategory) {
       return {
-        title: categoryData.name,
-        subtitle: categoryData.subtitle || categoryData.description || 'Discover our curated collection for every mood.',
-        image: categoryData.bannerImage || categoryData.image || '/images/cat_dresses.jpg',
-        categoryFilter: categoryData.name
+        title: currentCategory.name || fallbackTitle,
+        subtitle: currentCategory.subtitle || currentCategory.description || '',
+        image: currentCategory.bannerImage || currentCategory.image || '',
+        categoryFilter: currentCategory.name || fallbackTitle
       };
     }
-    return CATEGORY_BANNERS[catKey] || CATEGORY_BANNERS["dresses"];
-  }, [categoryData, catKey]);
+    return {
+      title: fallbackTitle,
+      subtitle: '',
+      image: '',
+      categoryFilter: fallbackTitle
+    };
+  }, [currentCategory, catKey]);
 
   // Sidebar Subcategory Menu items
   const menuItems = useMemo(() => {
-    if (categoryData && Array.isArray(categoryData.subcategories) && categoryData.subcategories.length > 0) {
-      return categoryData.subcategories;
+    if (currentCategory && Array.isArray(currentCategory.subcategories) && currentCategory.subcategories.length > 0) {
+      return [`All ${currentCategory.name || 'Items'}`, ...currentCategory.subcategories];
     }
-    return SUBCATEGORIES[catKey] || SUBCATEGORIES["dresses"];
-  }, [categoryData, catKey]);
+    const fallbackTitle = catKey.charAt(0).toUpperCase() + catKey.slice(1);
+    return [`All ${fallbackTitle}`];
+  }, [currentCategory, catKey]);
 
   // Active subcategory selection state
   const [activeSubcategory, setActiveSubcategory] = useState(menuItems[0]);
@@ -349,30 +77,6 @@ function CategoryPage() {
   useEffect(() => {
     setActiveSubcategory(menuItems[0]);
   }, [menuItems]);
-
-  // Dynamic Products State
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
-  const [, setLoading] = useState(true);
-
-  // Fetch products from backend API
-  useEffect(() => {
-    let isMounted = true;
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const res = await axiosClient.get('/products');
-        if (res && res.success && Array.isArray(res.products) && res.products.length > 0 && isMounted) {
-          setProducts(res.products);
-        }
-      } catch (err) {
-        console.warn('Backend API products fetch note: using local mock data', err.message);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    fetchProducts();
-    return () => { isMounted = false; };
-  }, []);
 
   // Filter Drawer States (Filters sidebar inside popup)
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -734,17 +438,19 @@ function CategoryPage() {
           </div>
 
           {/* Banner Image (Right aligned absolute / flex crop) */}
-          <div className="hidden md:block w-2/5 h-full absolute right-0 top-0 bottom-0 select-none">
-            <div className="w-full h-full relative">
-              {/* Overlay shading to blend image in */}
-              <div className="absolute inset-0 bg-gradient-to-r from-[#F5ECE1] via-[#F5ECE1]/40 to-transparent z-10" />
-              <img 
-                src={banner.image} 
-                alt={`${banner.title} collection`} 
-                className="w-full h-full object-cover object-top" 
-              />
+          {banner.image && (
+            <div className="hidden md:block w-2/5 h-full absolute right-0 top-0 bottom-0 select-none">
+              <div className="w-full h-full relative">
+                {/* Overlay shading to blend image in */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#F5ECE1] via-[#F5ECE1]/40 to-transparent z-10" />
+                <img 
+                  src={banner.image} 
+                  alt={`${banner.title} collection`} 
+                  className="w-full h-full object-cover object-top" 
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
       </div>
@@ -827,7 +533,7 @@ function CategoryPage() {
           }) : [];
 
           const activeColorName = productSelectedColor[productId] || colorsList[0]?.name;
-          const displayImage = product.image || (product.images && product.images[0]) || '/images/prod_dress.jpg';
+          const displayImage = product.image || (product.images && product.images[0]) || '';
           
           return (
             <div key={productId} className="group flex flex-col animate-fade-in">

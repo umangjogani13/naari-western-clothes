@@ -1,31 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axiosClient from '../../api/axiosClient';
-import { BESTSELLERS as DEFAULT_BESTSELLERS } from './homeData';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchBestsellers } from '../../store/slices/productSlice';
 
-function Bestsellers({ bestsellers: initialBestsellers }) {
-  const [items, setItems] = useState(initialBestsellers || DEFAULT_BESTSELLERS);
+function Bestsellers() {
+  const dispatch = useDispatch();
+  const { bestsellers: items = [], loading } = useSelector((state) => state.products || {});
 
   useEffect(() => {
-    const fetchBestsellers = async () => {
-      try {
-        // Try fetching products marked as bestseller
-        const res = await axiosClient.get('/products?bestseller=true&limit=6');
-        if (res && res.success && Array.isArray(res.products) && res.products.length >= 3) {
-          setItems(res.products.slice(0, 6));
-        } else {
-          // If fewer than 3 marked as bestsellers, fetch top selling products
-          const popularRes = await axiosClient.get('/products?sort=popular&limit=6');
-          if (popularRes && popularRes.success && Array.isArray(popularRes.products) && popularRes.products.length > 0) {
-            setItems(popularRes.products.slice(0, 6));
-          }
-        }
-      } catch (err) {
-        console.warn('Bestsellers API offline, using fallback catalog.');
-      }
-    };
-    fetchBestsellers();
-  }, []);
+    dispatch(fetchBestsellers(6));
+  }, [dispatch]);
+
+  // Display only when bestseller products are available from the backend
+  if (loading || !items || items.length === 0) {
+    return null;
+  }
 
   return (
     <section className="bg-white py-16 border-t border-gray-50">
@@ -33,9 +22,14 @@ function Bestsellers({ bestsellers: initialBestsellers }) {
         
         {/* Header */}
         <div className="flex justify-between items-end mb-10">
-          <h2 className="text-lg sm:text-2xl font-serif font-medium tracking-[0.2em] text-gray-950 uppercase">
-            BESTSELLERS
-          </h2>
+          <div>
+            <span className="text-[10px] sm:text-xs uppercase font-bold tracking-[0.25em] text-[#8C6239] block mb-1">
+              Most Loved Styles
+            </span>
+            <h2 className="text-lg sm:text-2xl font-serif font-medium tracking-[0.2em] text-gray-950 uppercase">
+              BESTSELLERS
+            </h2>
+          </div>
           <Link 
             to="/shop" 
             className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-gray-900 hover:text-rose-600 transition-colors border-b border-black hover:border-rose-600 pb-0.5"
@@ -48,7 +42,7 @@ function Bestsellers({ bestsellers: initialBestsellers }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 sm:gap-8 justify-items-center">
           {items.map((item, index) => {
             const productTarget = `/product/${item._id || item.id}`;
-            const displayPrice = item.salePrice || item.price || 1499;
+            const displayPrice = item.salePrice || item.price;
 
             return (
               <Link 
@@ -65,7 +59,7 @@ function Bestsellers({ bestsellers: initialBestsellers }) {
                     loading="lazy"
                   />
                   {/* Rank Badge */}
-                  <div className="absolute top-1 left-1 w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-[#C3A389] text-white flex items-center justify-center font-bold text-xs border border-white shadow-md">
+                  <div className="absolute top-1 left-1 w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-[#8C6239] text-white flex items-center justify-center font-bold text-xs border border-white shadow-md">
                     {index + 1}
                   </div>
                 </div>

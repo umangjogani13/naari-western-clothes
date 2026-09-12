@@ -2,12 +2,16 @@ import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiHeart, FiHeart as FiHeartOutline } from 'react-icons/fi';
 import { FaStar } from 'react-icons/fa';
-import { FALLBACK_PRODUCTS } from './homeData';
 
-function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
+function NewArrivals({ products = [], loading = false }) {
   const [favorites, setFavorites] = useState({});
   const [selectedColors, setSelectedColors] = useState({});
   const newArrivalsRef = useRef(null);
+
+  // If not loading and no products available from backend, do not display section
+  if (!loading && (!products || products.length === 0)) {
+    return null;
+  }
 
   const toggleFavorite = (productId) => {
     setFavorites(prev => ({
@@ -37,15 +41,20 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
         
         {/* Header */}
         <div className="flex justify-between items-end mb-10">
-          <h2 className="text-lg sm:text-2xl font-serif font-medium tracking-[0.2em] text-gray-950 uppercase">
-            NEW ARRIVALS
-          </h2>
-          <a 
-            href="/shop" 
+          <div>
+            <span className="text-[10px] sm:text-xs uppercase font-bold tracking-[0.25em] text-[#8C6239] block mb-1">
+              Curated Just For You
+            </span>
+            <h2 className="text-lg sm:text-2xl font-serif font-medium tracking-[0.2em] text-gray-950 uppercase">
+              NEW ARRIVALS
+            </h2>
+          </div>
+          <Link 
+            to="/shop" 
             className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-gray-900 hover:text-rose-600 transition-colors border-b border-black hover:border-rose-600 pb-0.5"
           >
             VIEW ALL
-          </a>
+          </Link>
         </div>
 
         {/* Carousel */}
@@ -53,7 +62,7 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
           {/* Scroll Buttons */}
           <button 
             onClick={() => scrollContainer('left')}
-            className="absolute -left-4 top-[35%] -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:text-rose-600 active:scale-95 transition-all opacity-0 group-hover/new:opacity-100 z-10 duration-300"
+            className="absolute -left-4 top-[35%] -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:text-rose-600 active:scale-95 transition-all opacity-0 group-hover/new:opacity-100 z-10 duration-300 cursor-pointer"
             aria-label="Scroll left new arrivals"
           >
             <FiChevronLeft className="w-5 h-5" />
@@ -61,7 +70,7 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
           
           <button 
             onClick={() => scrollContainer('right')}
-            className="absolute -right-4 top-[35%] -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:text-rose-600 active:scale-95 transition-all opacity-0 group-hover/new:opacity-100 z-10 duration-300"
+            className="absolute -right-4 top-[35%] -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-800 hover:text-rose-600 active:scale-95 transition-all opacity-0 group-hover/new:opacity-100 z-10 duration-300 cursor-pointer"
             aria-label="Scroll right new arrivals"
           >
             <FiChevronRight className="w-5 h-5" />
@@ -83,12 +92,12 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
               className="flex gap-5 sm:gap-6 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-4"
             >
               {products.map((product) => {
-                const isFavorite = !!favorites[product.id];
-                const activeColor = selectedColors[product.id] || (product.colors && product.colors[0]);
+                const isFavorite = !!favorites[product.id || product._id];
+                const activeColor = selectedColors[product.id || product._id] || (product.colors && product.colors[0]);
 
                 return (
                   <div 
-                    key={product.id} 
+                    key={product.id || product._id} 
                     className="min-w-[160px] w-[200px] sm:w-[220px] snap-start group flex flex-col relative bg-white transition-all duration-300"
                   >
                     {/* Image Wrapper */}
@@ -105,7 +114,7 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
                       {/* Wishlist Button */}
                       <button 
                         onClick={() => toggleFavorite(product.id || product._id)}
-                        className="absolute top-2.5 right-2.5 w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all z-10"
+                        className="absolute top-2.5 right-2.5 w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all z-10 cursor-pointer"
                         aria-label="Add to Wishlist"
                       >
                         {isFavorite ? (
@@ -134,41 +143,55 @@ function NewArrivals({ products = FALLBACK_PRODUCTS, loading = false }) {
                         </h3>
                       </Link>
                       
-                      <span className="text-xs sm:text-sm font-bold text-gray-950">
-                        ₹{Number(product.salePrice || product.price).toLocaleString('en-IN')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-bold text-gray-950">
+                          ₹{Number(product.salePrice || product.price).toLocaleString('en-IN')}
+                        </span>
+                        {product.salePrice && product.salePrice < product.price && (
+                          <span className="text-[10px] text-gray-400 line-through">
+                            ₹{Number(product.price).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </div>
 
                       {/* Ratings */}
-                      <div className="flex items-center space-x-1 pt-0.5">
-                        <div className="flex text-amber-400">
-                          {[...Array(5)].map((_, i) => (
-                            <FaStar 
-                              key={i} 
-                              className={`w-2.5 h-2.5 ${i < Math.floor(product.rating || 5) ? 'text-amber-400' : 'text-gray-200'}`} 
-                            />
-                          ))}
+                      {product.rating > 0 && (
+                        <div className="flex items-center space-x-1 pt-0.5">
+                          <div className="flex text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                              <FaStar 
+                                key={i} 
+                                className={`w-2.5 h-2.5 ${i < Math.floor(product.rating) ? 'text-amber-400' : 'text-gray-200'}`} 
+                              />
+                            ))}
+                          </div>
+                          {product.reviewsCount > 0 && (
+                            <span className="text-[9px] text-gray-400 font-light">
+                              ({product.reviewsCount})
+                            </span>
+                          )}
                         </div>
-                        <span className="text-[9px] text-gray-400 font-light">
-                          ({product.reviewsCount})
-                        </span>
-                      </div>
+                      )}
 
                       {/* Color Selector */}
                       {product.colors && product.colors.length > 0 && (
                         <div className="flex items-center space-x-1.5 pt-1.5">
-                          {product.colors.map((color, i) => (
-                            <button
-                              key={i}
-                              onClick={() => handleColorSelect(product.id, color)}
-                              className={`w-3 h-3 rounded-full border transition-all ${
-                                activeColor === color 
-                                  ? 'border-black scale-110 shadow-sm' 
-                                  : 'border-gray-200 hover:border-gray-400'
-                              }`}
-                              style={{ backgroundColor: color }}
-                              aria-label={`Select Color ${color}`}
-                            />
-                          ))}
+                          {product.colors.map((color, i) => {
+                            const colVal = typeof color === 'string' ? color : color.value;
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => handleColorSelect(product.id || product._id, colVal)}
+                                className={`w-3 h-3 rounded-full border transition-all cursor-pointer ${
+                                  activeColor === colVal 
+                                    ? 'border-black scale-110 shadow-sm' 
+                                    : 'border-gray-200 hover:border-gray-400'
+                                }`}
+                                style={{ backgroundColor: colVal }}
+                                aria-label={`Select Color ${colVal}`}
+                              />
+                            );
+                          })}
                         </div>
                       )}
                     </div>

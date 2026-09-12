@@ -1,21 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchAdminReviews,
+  createReview,
+  updateReview,
+  deleteReview,
+  toggleReviewStatus,
+  toggleReviewFeatured
+} from '../store/slices/reviewSlice';
 import { 
   FiSearch, 
   FiTrash2, 
   FiCheckCircle, 
-  FiStar,
-  FiPlus,
-  FiEdit,
-  FiX,
-  FiHome,
-  FiAlertCircle
+  FiStar, 
+  FiPlus, 
+  FiEdit, 
+  FiX, 
+  FiHome, 
+  FiAlertCircle 
 } from 'react-icons/fi';
-import axiosClient from '../api/axiosClient';
 
 const Reviews = () => {
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, published: 0, pending: 0, avgRating: 5.0 });
+  const dispatch = useDispatch();
+  const { adminList: reviews, stats, loading } = useSelector((state) => state.reviews);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -30,29 +38,18 @@ const Reviews = () => {
   const [customer, setCustomer] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
-  const [productName, setProductName] = useState('LAVÉRA Collection');
-  const [productImage, setProductImage] = useState('/images/prod_dress.jpg');
+  const [productName, setProductName] = useState('');
+  const [productImage, setProductImage] = useState('');
   const [isFeaturedOnHome, setIsFeaturedOnHome] = useState(true);
   const [status, setStatus] = useState('Published');
 
-  const fetchReviews = async () => {
-    try {
-      setLoading(true);
-      const res = await axiosClient.get('/reviews/admin');
-      if (res && res.success) {
-        setReviews(res.reviews || []);
-        if (res.stats) setStats(res.stats);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch admin reviews:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadReviews = useCallback(() => {
+    dispatch(fetchAdminReviews());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchReviews();
-  }, []);
+    loadReviews();
+  }, [loadReviews]);
 
   const triggerAlert = (type, text) => {
     setAlertMsg({ type, text });
@@ -64,8 +61,8 @@ const Reviews = () => {
     setCustomer('');
     setRating(5);
     setComment('');
-    setProductName('LAVÉRA Collection');
-    setProductImage('/images/prod_dress.jpg');
+    setProductName('');
+    setProductImage('');
     setIsFeaturedOnHome(true);
     setStatus('Published');
     setShowModal(true);
@@ -76,8 +73,8 @@ const Reviews = () => {
     setCustomer(r.customer || '');
     setRating(r.rating || 5);
     setComment(r.comment || '');
-    setProductName(r.productName || 'LAVÉRA Collection');
-    setProductImage(r.productImage || '/images/prod_dress.jpg');
+    setProductName(r.productName || '');
+    setProductImage(r.productImage || '');
     setIsFeaturedOnHome(r.isFeaturedOnHome !== undefined ? r.isFeaturedOnHome : true);
     setStatus(r.status || 'Published');
     setShowModal(true);
@@ -85,44 +82,32 @@ const Reviews = () => {
 
   const handleToggleStatus = async (id) => {
     try {
-      const res = await axiosClient.patch(`/reviews/${id}/status`);
-      if (res && res.success) {
-        setReviews(prev => prev.map(r => r._id === id ? { ...r, status: res.status } : r));
-        setStats(prev => ({
-          ...prev,
-          published: res.status === 'Published' ? prev.published + 1 : prev.published - 1,
-          pending: res.status === 'Published' ? prev.pending - 1 : prev.pending + 1
-        }));
-        triggerAlert('success', `Review is now ${res.status}`);
-      }
+      const res = await dispatch(toggleReviewStatus(id)).unwrap();
+      triggerAlert('success', `Review is now ${res.status}`);
+      loadReviews();
     } catch (err) {
-      triggerAlert('error', 'Failed to toggle review status');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to toggle review status');
     }
   };
 
   const handleToggleFeatured = async (id) => {
     try {
-      const res = await axiosClient.patch(`/reviews/${id}/featured`);
-      if (res && res.success) {
-        setReviews(prev => prev.map(r => r._id === id ? { ...r, isFeaturedOnHome: res.isFeaturedOnHome } : r));
-        triggerAlert('success', `Featured on home set to ${res.isFeaturedOnHome ? 'Enabled' : 'Disabled'}`);
-      }
+      const res = await dispatch(toggleReviewFeatured(id)).unwrap();
+      triggerAlert('success', `Featured on home set to ${res.isFeaturedOnHome ? 'Enabled' : 'Disabled'}`);
+      loadReviews();
     } catch (err) {
-      triggerAlert('error', 'Failed to toggle featured status');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to toggle featured status');
     }
   };
 
   const handleDelete = async (id, custName) => {
     if (!window.confirm(`Are you sure you want to delete review from "${custName}"?`)) return;
     try {
-      const res = await axiosClient.delete(`/reviews/${id}`);
-      if (res && res.success) {
-        setReviews(prev => prev.filter(r => r._id !== id));
-        setStats(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
-        triggerAlert('success', `Deleted review by "${custName}"`);
-      }
+      await dispatch(deleteReview(id)).unwrap();
+      triggerAlert('success', `Deleted review by "${custName}"`);
+      loadReviews();
     } catch (err) {
-      triggerAlert('error', 'Failed to delete review');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to delete review');
     }
   };
 
@@ -130,33 +115,27 @@ const Reviews = () => {
     e.preventDefault();
     setSubmitting(true);
     const payload = {
-      customer,
+      customer: customer.trim(),
       rating: Number(rating),
-      comment,
-      productName,
-      productImage,
+      comment: comment.trim(),
+      productName: productName.trim(),
+      productImage: productImage.trim(),
       isFeaturedOnHome: Boolean(isFeaturedOnHome),
       status
     };
 
     try {
       if (editReview) {
-        const res = await axiosClient.put(`/reviews/${editReview._id}`, payload);
-        if (res && res.success) {
-          setReviews(prev => prev.map(r => r._id === editReview._id ? res.review : r));
-          triggerAlert('success', 'Review updated successfully!');
-        }
+        await dispatch(updateReview({ id: editReview._id, data: payload })).unwrap();
+        triggerAlert('success', 'Review updated successfully!');
       } else {
-        const res = await axiosClient.post('/reviews', payload);
-        if (res && res.success) {
-          setReviews(prev => [res.review, ...prev]);
-          setStats(prev => ({ ...prev, total: prev.total + 1, published: status === 'Published' ? prev.published + 1 : prev.published }));
-          triggerAlert('success', 'Customer review added successfully!');
-        }
+        await dispatch(createReview(payload)).unwrap();
+        triggerAlert('success', 'Customer review added successfully!');
       }
       setShowModal(false);
+      loadReviews();
     } catch (err) {
-      triggerAlert('error', err?.response?.data?.message || 'Failed to save review');
+      triggerAlert('error', typeof err === 'string' ? err : 'Failed to save review');
     } finally {
       setSubmitting(false);
     }

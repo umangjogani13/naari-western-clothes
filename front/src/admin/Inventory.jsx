@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProducts, updateProduct } from '../store/slices/productSlice';
 import { 
   FiSearch, 
   FiPlus, 
@@ -8,36 +10,49 @@ import {
   FiXCircle 
 } from 'react-icons/fi';
 
-const initialInventory = [
-  { id: 1, name: 'Satin Midi Dress', sku: 'LV-APP-SMD-01', stock: 45, alertLimit: 10, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=100' },
-  { id: 2, name: 'Oversized Cotton Shirt', sku: 'LV-APP-OCS-02', stock: 12, alertLimit: 10, image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=100' },
-  { id: 3, name: 'Wide Leg Jeans', sku: 'LV-APP-WLJ-03', stock: 6, alertLimit: 10, image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&q=80&w=100' },
-  { id: 4, name: 'Linen Co-ord Set', sku: 'LV-APP-LCS-04', stock: 5, alertLimit: 5, image: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&q=80&w=100' },
-  { id: 5, name: 'Off-Shoulder Crop Top', sku: 'LV-APP-OCT-05', stock: 0, alertLimit: 15, image: 'https://images.unsplash.com/photo-1609630875171-b1321377ee65?auto=format&fit=crop&q=80&w=100' }
-];
-
 const Inventory = () => {
-  const [items, setItems] = useState(initialInventory);
+  const dispatch = useDispatch();
+  const { items: rawProducts = [] } = useSelector((state) => state.products || {});
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  const adjustStock = (id, amount) => {
-    setItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const newStock = Math.max(0, item.stock + amount);
-        return { ...item, stock: newStock };
-      }
-      return item;
+  useEffect(() => {
+    dispatch(fetchProducts());
+  }, [dispatch]);
+
+  // Normalize dynamic database products for inventory
+  const items = useMemo(() => {
+    return (rawProducts || []).map((p, idx) => ({
+      ...p,
+      id: p._id || p.id || idx + 1,
+      realId: p._id,
+      name: p.name || 'Product',
+      sku: p.sku || `LV-${(p.category || 'GEN').substring(0, 3).toUpperCase()}-${String(idx + 1).padStart(2, '0')}`,
+      stock: p.stock !== undefined ? p.stock : 10,
+      alertLimit: p.lowStockAlert || p.alertLimit || 10,
+      image: p.image || (p.images && p.images[0]) || ''
     }));
+  }, [rawProducts]);
+
+  const adjustStock = async (id, amount) => {
+    const item = items.find(i => i.id === id || i.realId === id);
+    if (!item) return;
+    const newStock = Math.max(0, item.stock + amount);
+    if (item.realId) {
+      await dispatch(updateProduct({ id: item.realId, data: { stock: newStock } }));
+      dispatch(fetchProducts());
+    }
   };
 
-  const updateAlertLimit = (id, newLimit) => {
-    setItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, alertLimit: Math.max(0, Number(newLimit)) };
-      }
-      return item;
-    }));
+  const updateAlertLimit = async (id, newLimit) => {
+    const item = items.find(i => i.id === id || i.realId === id);
+    if (!item) return;
+    const limit = Math.max(0, Number(newLimit));
+    if (item.realId) {
+      await dispatch(updateProduct({ id: item.realId, data: { lowStockAlert: limit } }));
+      dispatch(fetchProducts());
+    }
   };
 
   const getStockStatus = (stock, limit) => {

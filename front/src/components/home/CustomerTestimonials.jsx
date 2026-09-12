@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { FaStar } from 'react-icons/fa';
-import axiosClient from '../../api/axiosClient';
-import { TESTIMONIALS as DEFAULT_TESTIMONIALS } from './homeData';
+import { fetchFeaturedReviews } from '../../store/slices/reviewSlice';
 
-function CustomerTestimonials({ testimonials: initialTestimonials }) {
-  const [reviews, setReviews] = useState(initialTestimonials || DEFAULT_TESTIMONIALS);
+function CustomerTestimonials() {
+  const dispatch = useDispatch();
+  const { featured: reviews = [], loading } = useSelector((state) => state.reviews || {});
   const [testimonialIndex, setTestimonialIndex] = useState(0);
 
   useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        const res = await axiosClient.get('/reviews/featured');
-        if (res && res.success && Array.isArray(res.testimonials) && res.testimonials.length > 0) {
-          setReviews(res.testimonials);
-        }
-      } catch (err) {
-        console.warn('Testimonials API offline, using fallback data.');
-      }
-    };
-    fetchReviews();
-  }, []);
+    dispatch(fetchFeaturedReviews());
+  }, [dispatch]);
+
+  // If no testimonials available from backend API, do not display section
+  if (loading || !reviews || reviews.length === 0) {
+    return null;
+  }
 
   // Display 3 testimonials on desktop based on index
   const visibleReviews = reviews.slice(testimonialIndex * 3, testimonialIndex * 3 + 3);

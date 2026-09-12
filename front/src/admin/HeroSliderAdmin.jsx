@@ -1,4 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchAdminHeroSlides,
+  createSlide,
+  updateSlide,
+  deleteSlide,
+  toggleSlideStatus
+} from '../store/slices/heroSliderSlice';
 import axiosClient from '../api/axiosClient';
 import { 
   FiPlus, 
@@ -40,8 +48,9 @@ const PRESET_COLORS = [
 ];
 
 const HeroSliderAdmin = () => {
-  const [slides, setSlides] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { adminSlides: slides, loading } = useSelector((state) => state.heroSlider);
+
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -68,30 +77,21 @@ const HeroSliderAdmin = () => {
   const [status, setStatus] = useState('Active');
   const [bgColor, setBgColor] = useState('#EAE3DB');
 
-  // Fetch all slides from backend API
-  const fetchSlides = async () => {
-    try {
-      setLoading(true);
-      setErrorMsg('');
-      const response = await axiosClient.get('/hero-slider/admin');
-      if (response && response.success && Array.isArray(response.slides)) {
-        const sorted = [...response.slides].sort((a, b) => (a.order || 0) - (b.order || 0));
-        setSlides(sorted);
-        if (sorted.length > 0 && !previewSlideId) {
-          setPreviewSlideId(sorted[0]._id);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching admin slides:', err);
-      setErrorMsg('Failed to load hero slides. Please ensure the backend server is running.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch all slides from backend API via Redux
+  const fetchSlidesData = useCallback(() => {
+    setErrorMsg('');
+    dispatch(fetchAdminHeroSlides());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchSlides();
-  }, []);
+    fetchSlidesData();
+  }, [fetchSlidesData]);
+
+  useEffect(() => {
+    if (slides.length > 0 && !previewSlideId) {
+      setPreviewSlideId(slides[0]._id);
+    }
+  }, [slides, previewSlideId]);
 
   const notifySuccess = (msg) => {
     setSuccessMsg(msg);
@@ -138,18 +138,16 @@ const HeroSliderAdmin = () => {
     if (window.confirm(`Are you sure you want to delete slide "${displayTitle}"?`)) {
       try {
         setActionLoading(true);
-        const res = await axiosClient.delete(`/hero-slider/${id}`);
-        if (res && res.success) {
-          setSlides(prev => prev.filter(s => s._id !== id));
-          if (previewSlideId === id) {
-            const remaining = slides.filter(s => s._id !== id);
-            setPreviewSlideId(remaining.length > 0 ? remaining[0]._id : null);
-          }
-          notifySuccess('Slide deleted successfully.');
+        await dispatch(deleteSlide(id)).unwrap();
+        if (previewSlideId === id) {
+          const remaining = slides.filter(s => s._id !== id);
+          setPreviewSlideId(remaining.length > 0 ? remaining[0]._id : null);
         }
+        notifySuccess('Slide deleted successfully.');
+        fetchSlidesData();
       } catch (err) {
         console.error('Delete error:', err);
-        alert('Failed to delete slide from backend.');
+        alert(typeof err === 'string' ? err : 'Failed to delete slide from backend.');
       } finally {
         setActionLoading(false);
       }
@@ -160,14 +158,12 @@ const HeroSliderAdmin = () => {
   const handleToggleStatus = async (id) => {
     try {
       setActionLoading(true);
-      const res = await axiosClient.patch(`/hero-slider/${id}/status`);
-      if (res && res.success && res.slide) {
-        setSlides(prev => prev.map(s => s._id === id ? res.slide : s));
-        notifySuccess(`Slide marked as ${res.slide.status}`);
-      }
+      const res = await dispatch(toggleSlideStatus(id)).unwrap();
+      notifySuccess(`Slide marked as ${res?.status || 'updated'}`);
+      fetchSlidesData();
     } catch (err) {
       console.error('Toggle status error:', err);
-      alert('Failed to toggle status.');
+      alert(typeof err === 'string' ? err : 'Failed to toggle status.');
     } finally {
       setActionLoading(false);
     }
@@ -178,9 +174,9 @@ const HeroSliderAdmin = () => {
     try {
       setActionLoading(true);
       const res = await axiosClient.patch(`/hero-slider/${id}/move`, { direction });
-      if (res && res.success && Array.isArray(res.slides)) {
-        setSlides(res.slides);
+      if (res && res.success) {
         notifySuccess(`Slide moved ${direction} successfully.`);
+        fetchSlidesData();
       }
     } catch (err) {
       console.error(`Move ${direction} error:`, err);
@@ -215,26 +211,18 @@ const HeroSliderAdmin = () => {
     try {
       setActionLoading(true);
       if (editSlideId) {
-        const res = await axiosClient.put(`/hero-slider/${editSlideId}`, payload);
-        if (res && res.success && res.slide) {
-          setSlides(prev => {
-            const updated = prev.map(s => s._id === editSlideId ? res.slide : s);
-            return updated.sort((a, b) => (a.order || 0) - (b.order || 0));
-          });
-          notifySuccess('Hero slide updated successfully!');
-        }
+        await dispatch(updateSlide({ id: editSlideId, data: payload })).unwrap();
+        notifySuccess('Hero slide updated successfully!');
       } else {
-        const res = await axiosClient.post('/hero-slider', payload);
-        if (res && res.success && res.slide) {
-          setSlides(prev => [...prev, res.slide].sort((a, b) => (a.order || 0) - (b.order || 0)));
-          setPreviewSlideId(res.slide._id);
-          notifySuccess('Hero slide created successfully!');
-        }
+        const created = await dispatch(createSlide(payload)).unwrap();
+        setPreviewSlideId(created?._id);
+        notifySuccess('Hero slide created successfully!');
       }
       setShowModal(false);
+      fetchSlidesData();
     } catch (err) {
       console.error('Form submit error:', err);
-      alert('Failed to save slide to backend.');
+      alert(typeof err === 'string' ? err : 'Failed to save slide to backend.');
     } finally {
       setActionLoading(false);
     }
@@ -268,8 +256,7 @@ const HeroSliderAdmin = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onCl
-            ick={fetchSlides}
+            onClick={fetchSlidesData}
             disabled={loading || actionLoading}
             className="flex items-center gap-1.5 px-3.5 py-2 border border-[#EAE3DC] bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors shadow-xs disabled:opacity-50"
             title="Refresh Slides from Backend"

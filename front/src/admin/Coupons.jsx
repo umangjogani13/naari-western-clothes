@@ -1,4 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  fetchCoupons, 
+  createCoupon, 
+  updateCoupon, 
+  deleteCoupon 
+} from '../store/slices/couponSlice';
 import { 
   FiSearch, 
   FiPlus, 
@@ -7,19 +14,17 @@ import {
   FiX 
 } from 'react-icons/fi';
 
-const initialCoupons = [
-  { id: 1, code: 'LAVERA10', type: 'percentage', discount: '10% OFF', minOrder: '₹1,200', expiry: '21 May, 2026', status: 'Active' },
-  { id: 2, code: 'FLAT200', type: 'fixed', discount: '₹200 OFF', minOrder: '₹1,500', expiry: '15 Jun, 2026', status: 'Active' },
-  { id: 3, code: 'SUMMER20', type: 'percentage', discount: '20% OFF', minOrder: '₹2,000', expiry: '31 Aug, 2024', status: 'Expired' },
-  { id: 4, code: 'NEWUSERS', type: 'percentage', discount: '15% OFF', minOrder: '₹999', expiry: '31 Dec, 2026', status: 'Active' },
-  { id: 5, code: 'FREESHIP', type: 'shipping', discount: 'Free Shipping', minOrder: '₹999', expiry: '31 Mar, 2026', status: 'Active' }
-];
-
 const Coupons = () => {
-  const [coupons, setCoupons] = useState(initialCoupons);
+  const dispatch = useDispatch();
+  const { items: rawCoupons = [] } = useSelector((state) => state.coupons || {});
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editCoupon, setEditCoupon] = useState(null);
+
+  useEffect(() => {
+    dispatch(fetchCoupons());
+  }, [dispatch]);
 
   // Form states
   const [code, setCode] = useState('');
@@ -28,6 +33,31 @@ const Coupons = () => {
   const [minOrder, setMinOrder] = useState('');
   const [expiry, setExpiry] = useState('');
   const [status, setStatus] = useState('Active');
+
+  // Normalize dynamic database coupons
+  const coupons = useMemo(() => {
+    return (rawCoupons || []).map((c, idx) => {
+      let displayDiscount = '';
+      if (c.type === 'percentage') displayDiscount = `${c.discountValue || c.discount || 0}% OFF`;
+      else if (c.type === 'fixed') displayDiscount = `₹${c.discountValue || c.discount || 0} OFF`;
+      else displayDiscount = 'Free Shipping';
+
+      return {
+        ...c,
+        id: c._id || c.id || idx + 1,
+        realId: c._id,
+        code: c.code,
+        type: c.type || 'percentage',
+        discount: displayDiscount,
+        rawDiscount: c.discountValue || c.discount || 0,
+        minOrder: `₹${Number(c.minOrderAmount || c.minOrder || 0).toLocaleString('en-IN')}`,
+        rawMinOrder: Number(c.minOrderAmount || c.minOrder || 0),
+        expiry: c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : (c.expiry || 'No Expiry'),
+        rawExpiry: c.expiresAt ? new Date(c.expiresAt).toISOString().split('T')[0] : '',
+        status: c.isActive === false ? 'Inactive' : (c.status || 'Active')
+      };
+    });
+  }, [rawCoupons]);
 
   const handleOpenAdd = () => {
     setEditCoupon(null);
@@ -44,59 +74,46 @@ const Coupons = () => {
     setEditCoupon(coupon);
     setCode(coupon.code);
     setType(coupon.type);
-    setDiscountVal(coupon.discount.replace(/% OFF|₹| OFF|Free Shipping/g, ''));
-    setMinOrder(coupon.minOrder.replace(/₹|,/g, ''));
-    setExpiry(coupon.expiry);
+    setDiscountVal(coupon.rawDiscount ? String(coupon.rawDiscount) : '');
+    setMinOrder(coupon.rawMinOrder ? String(coupon.rawMinOrder) : '');
+    setExpiry(coupon.rawExpiry || '');
     setStatus(coupon.status);
     setShowModal(true);
   };
 
-  const handleDelete = (id, couponCode) => {
+  const handleDelete = async (id, couponCode) => {
+    const matched = coupons.find(c => c.id === id || c.realId === id);
+    const targetId = matched?.realId || id;
     if (window.confirm(`Are you sure you want to delete coupon ${couponCode}?`)) {
-      setCoupons(prev => prev.filter(c => c.id !== id));
+      await dispatch(deleteCoupon(targetId));
+      dispatch(fetchCoupons());
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    let displayDiscount = '';
-    if (type === 'percentage') displayDiscount = `${discountVal}% OFF`;
-    else if (type === 'fixed') displayDiscount = `₹${discountVal} OFF`;
-    else displayDiscount = 'Free Shipping';
+    const payload = {
+      code: code.trim().toUpperCase(),
+      type,
+      discountValue: Number(discountVal),
+      minOrderAmount: Number(minOrder || 0),
+      expiresAt: expiry ? new Date(expiry) : undefined,
+      isActive: status === 'Active'
+    };
 
     if (editCoupon) {
-      setCoupons(prev => prev.map(c => {
-        if (c.id === editCoupon.id) {
-          return {
-            ...c,
-            code: code.toUpperCase(),
-            type,
-            discount: displayDiscount,
-            minOrder: `₹${Number(minOrder).toLocaleString('en-IN')}`,
-            expiry,
-            status
-          };
-        }
-        return c;
-      }));
+      const targetId = editCoupon.realId || editCoupon._id || editCoupon.id;
+      await dispatch(updateCoupon({ id: targetId, data: payload }));
     } else {
-      const newCoupon = {
-        id: coupons.length + 1,
-        code: code.toUpperCase(),
-        type,
-        discount: displayDiscount,
-        minOrder: minOrder ? `₹${Number(minOrder).toLocaleString('en-IN')}` : '₹0',
-        expiry: expiry || 'No Expiry',
-        status
-      };
-      setCoupons([...coupons, newCoupon]);
+      await dispatch(createCoupon(payload));
     }
+    dispatch(fetchCoupons());
     setShowModal(false);
   };
 
   const filteredCoupons = coupons.filter(c => {
-    return c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           c.discount.toLowerCase().includes(searchQuery.toLowerCase());
+    return (c.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (c.discount || '').toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
@@ -147,39 +164,47 @@ const Coupons = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F5ECE5]">
-              {filteredCoupons.map((coupon) => (
-                <tr key={coupon.id} className="hover:bg-gray-50/40">
-                  <td className="px-6 py-4 font-mono font-bold text-[#8C6239] tracking-wider uppercase bg-[#FAF4EE]/35">
-                    {coupon.code}
-                  </td>
-                  <td className="px-6 py-4 text-gray-900 font-bold">{coupon.discount}</td>
-                  <td className="px-6 py-4 text-gray-500 font-semibold">{coupon.minOrder}</td>
-                  <td className="px-6 py-4 text-gray-600 font-medium">{coupon.expiry}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${coupon.status === 'Active' ? 'bg-[#EEF7F2] text-[#4C9068]' : 'bg-rose-50 text-rose-600'}`}>
-                      {coupon.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-3 text-gray-400">
-                      <button 
-                        onClick={() => handleOpenEdit(coupon)}
-                        className="p-1 hover:text-[#8C6239] transition-colors" 
-                        title="Edit"
-                      >
-                        <FiEdit size={15} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(coupon.id, coupon.code)}
-                        className="p-1 hover:text-rose-500 transition-colors" 
-                        title="Delete"
-                      >
-                        <FiTrash2 size={15} />
-                      </button>
-                    </div>
+              {filteredCoupons.length > 0 ? (
+                filteredCoupons.map((coupon) => (
+                  <tr key={coupon.id} className="hover:bg-gray-50/40">
+                    <td className="px-6 py-4 font-mono font-bold text-[#8C6239] tracking-wider uppercase bg-[#FAF4EE]/35">
+                      {coupon.code}
+                    </td>
+                    <td className="px-6 py-4 text-gray-900 font-bold">{coupon.discount}</td>
+                    <td className="px-6 py-4 text-gray-500 font-semibold">{coupon.minOrder}</td>
+                    <td className="px-6 py-4 text-gray-600 font-medium">{coupon.expiry}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${coupon.status === 'Active' ? 'bg-[#EEF7F2] text-[#4C9068]' : 'bg-rose-50 text-rose-600'}`}>
+                        {coupon.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-3 text-gray-400">
+                        <button 
+                          onClick={() => handleOpenEdit(coupon)}
+                          className="p-1 hover:text-[#8C6239] transition-colors" 
+                          title="Edit"
+                        >
+                          <FiEdit size={15} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(coupon.id, coupon.code)}
+                          className="p-1 hover:text-rose-500 transition-colors" 
+                          title="Delete"
+                        >
+                          <FiTrash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="px-6 py-10 text-center text-gray-400 font-medium">
+                    No coupons found. Click "+ Add Coupon" to create one.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

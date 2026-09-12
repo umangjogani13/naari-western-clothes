@@ -34,6 +34,14 @@ const userSchema = new mongoose.Schema({
   gender: {
     type: String,
     default: ''
+  },
+  role: {
+    type: String,
+    default: 'Customer'
+  },
+  status: {
+    type: String,
+    default: 'Active'
   }
 }, {
   timestamps: true // Automatically creates createdAt and updatedAt fields
